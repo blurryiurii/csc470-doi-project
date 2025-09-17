@@ -1,3 +1,4 @@
 node_modules
 package-lock.json
 db/db-creds.env
+db/db

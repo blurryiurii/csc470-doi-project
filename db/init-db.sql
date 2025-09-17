@@ -32,7 +32,7 @@ CREATE TABLE dbo.thread (
 CREATE TABLE dbo.comment (
     id SERIAL PRIMARY KEY,
     thread_id INTEGER NOT NULL REFERENCES dbo.thread(id),
-    user_id INTEGER NOT NULL REFERENCES dbo.users(id),
+    user_id INTEGER NOT NULL REFERENCES dbo.user(id),
     body TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
