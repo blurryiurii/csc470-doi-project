@@ -29,14 +29,6 @@ CREATE TABLE dbo.thread (
     author_id INTEGER NOT NULL REFERENCES dbo.author(id)
 );
 
-CREATE TABLE dbo.log (
-    id SERIAL PRIMARY KEY,
-    action TEXT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    user_id INTEGER NOT NULL REFERENCES dbo.user(id),
-    description TEXT
-);
-
 CREATE TABLE dbo.comment (
     id SERIAL PRIMARY KEY,
     thread_id INTEGER NOT NULL REFERENCES dbo.thread(id),
@@ -53,3 +45,12 @@ CREATE TABLE dbo.vote (
     is_upvote BOOLEAN NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE dbo.log (
+    id SERIAL PRIMARY KEY,
+    action TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    user_id INTEGER NOT NULL REFERENCES dbo.user(id),
+    description TEXT
+);
+

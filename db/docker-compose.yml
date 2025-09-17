@@ -1,0 +1,13 @@
+# Docker compose script to bring up Postgres
+# This will bring up the db to localhost:5432
+
+# Reference this: https://github.com/felipewom/docker-compose-postgres/
+services:
+  database:
+    image: 'postgres:latest'
+    ports:
+      - 5432:5432
+    env_file:
+    - "db-creds.env"
+    volumes:
+    - ./db:/var/lib/postgresql/data
