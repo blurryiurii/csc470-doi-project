@@ -1,11 +1,24 @@
 import requests
 import json
+import asyncio
+import asyncpg
+
 def check_doi(doi):
     r = requests.get(f"https://api.crossref.org/works/{doi}")
     return r.status_code == 200
 
 print("enter 'exit' to quit")
 
+async def run():
+    conn = await asyncpg.connect(user='example', password='passw0rd',
+                                database='doi', host='127.0.0.1', port=5432)
+
+    await conn.execute(
+        "insert into dbo.user (account_name, bio, password_hash, role, last_online, last_post_time) values ('name', 'bio', 'aB2df2e', 1, NOW(), NOW())"
+    )
+    await conn.close()
+
+asyncio.run(run())
 
 using = True
 
