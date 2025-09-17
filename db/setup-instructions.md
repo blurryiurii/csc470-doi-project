@@ -18,8 +18,9 @@ Persistence is achieved by binding a docker volume to our db directory where you
 - Connection tab: hostname is `localhost`, port 5432 if running on your machine
 
 # Initial setup
+Use pgAdmin4 to create a database `doi`.
+
 Create a database, add tables with columns in accordance with our [Plan](https://docs.google.com/document/d/1JaCjudOS43ThM-KK7oG8mUY-IwXx-uDua0S-QsC5OSs).
-Our schema of main db (`doi`)
 - `user`
 - `author`
 - `thread`
@@ -27,4 +28,6 @@ Our schema of main db (`doi`)
 - `vote`
 - `log`
 
-Run the `init-db.sql` script to initialize all of these tables.
+To initialize, run the `init-db.sql` script to initialize the schema and tables.
+
+Now, Postgres should be ready to populate!
