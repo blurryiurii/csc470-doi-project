@@ -11,14 +11,25 @@ print("enter 'exit' to quit")
 
 async def run():
     conn = await asyncpg.connect(user='example', password='passw0rd',
-                                database='doi', host='127.0.0.1', port=5432)
+                                database='default_database', host='127.0.0.1', port=5432)
 
     await conn.execute(
         "insert into dbo.user (account_name, bio, password_hash, role, last_online, last_post_time) values ('name', 'bio', 'aB2df2e', 1, NOW(), NOW())"
     )
     await conn.close()
+'''
+async def create_user(username):
+    conn = await asyncpg.connect(user='example', password='passw0rd',
+                                database='doi', host='127.0.0.1', port=5432)
+    print("connected")
 
-asyncio.run(run())
+    await conn.execute(
+        f"insert into dbo.user (account_name, bio, password_hash, role, last_online, last_post_time) values ('{username}', 'bio', 'aB2df2e', 1, NOW(), NOW())"
+    )
+    await conn.close()
+
+    '''
+
 
 using = True
 
@@ -28,6 +39,7 @@ threads = dict()
 
 while using:
     user_name=input("Enter username: ")
+    asyncio.run(run())
     if user_name=="exit":
         break;
     if user_name in users:
