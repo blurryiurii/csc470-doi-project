@@ -42,16 +42,6 @@ async def create_thread(doi,title,abstract,author):
     )
     await conn.close()
 
-async def check_author(author_name):
-    conn = await asyncpg.connect(user='example', password='passw0rd',
-                                database='default_database', host='127.0.0.1', port=5432)
-
-    data = await conn.fetchrow(
-        f"SELECT * FROM dbo.author where name = '{author_name}'"
-    )
-    await conn.close()
-    return data
-
 
 async def check_user(username):
     conn = await asyncpg.connect(user='example', password='passw0rd',
@@ -62,6 +52,33 @@ async def check_user(username):
     )
     await conn.close()
     return data
+async def get_chat(thread_id):
+    conn = await asyncpg.connect(user='example', password='passw0rd',
+                                database='default_database', host='127.0.0.1', port=5432)
+
+    data = await conn.fetch(
+        f"SELECT (user_id,body) FROM dbo.comment where thread_id = '{thread_id}'"
+    )
+
+    await conn.close()
+    return data
+async def send_message(thread_id,username,text):
+    conn = await asyncpg.connect(user='example', password='passw0rd',
+                                database='default_database', host='127.0.0.1', port=5432)
+    user_id = await conn.fetch(
+        f"SELECT id FROM dbo.user where account_name = '{username}'"
+    )
+    user_id=user_id[0]['id']
+
+
+
+    
+    data = await conn.fetch(
+        "Insert into dbo.comment (thread_id,user_id,body,created_at) values ($1,$2,$3,NOW())",thread_id,user_id,text
+    )
+    await conn.close()
+    return data
+
 async def check_thread(doi):
     conn = await asyncpg.connect(user='example', password='passw0rd',
                                 database='default_database', host='127.0.0.1', port=5432)
@@ -71,6 +88,20 @@ async def check_thread(doi):
     )
     await conn.close()
     return data
+async def get_thread_id(doi):
+    conn = await asyncpg.connect(user='example', password='passw0rd',
+                                database='default_database', host='127.0.0.1', port=5432)
+
+    id = await conn.fetch(
+        f"SELECT id FROM dbo.thread where doi = '{doi}'"
+    )
+    id = id[0]['id']
+
+    id = int(id)
+    await conn.close()
+    return id
+
+
 
 
 
@@ -123,9 +154,19 @@ while using:
                 author = (data["message"]["author"][0])["given"] + " " + (data["message"]["author"][0])["family"]
                 print(chat,title,abstract)
                 asyncio.run(create_thread(chat,title,abstract,author))
+
+            thread_id = asyncio.run(get_thread_id(chat))
+            x = asyncio.run(get_chat(thread_id))
+            print(x)
             user_input = input()
             while user_input!="exit":
-                threads[chat]+=f"\n{user_name}: {user_input}"
+                thread_id = asyncio.run(get_thread_id(chat))
+
+                asyncio.run(send_message(thread_id,user_name,user_input))
+
+                x = asyncio.run(get_chat(thread_id))
+                print(x)
+
                 user_input = input()
             if user_input=="exit":
                 print(f"Thank you for visiting {chat}!")
