@@ -3,23 +3,32 @@ import json
 import asyncio
 import asyncpg
 
+from conn import *
+
 def check_doi(doi):
     r = requests.get(f"https://api.crossref.org/works/{doi}")
     return r.status_code == 200
 
 print("enter 'exit' to quit")
 
+conn_str = {
+    "user": user,
+    "password": password,
+    "database": database,
+    "host": host,
+    "port": port
+}
+
 async def create_user(username,password):
-    conn = await asyncpg.connect(user='example', password='passw0rd',
-                                database='default_database', host='127.0.0.1', port=5432)
+    conn = await asyncpg.connect(**conn_str)
 
     await conn.execute(
+        # todo hash the password
         f"insert into dbo.user (account_name, bio, password_hash, role, last_online, last_post_time) values ('{username}', 'bio', '{password}', 1, NOW(), NOW())"
     )
     await conn.close()
 async def create_thread(doi,title,abstract,author):
-    conn = await asyncpg.connect(user='example', password='passw0rd',
-                                database='default_database', host='127.0.0.1', port=5432)
+    conn = await asyncpg.connect(**conn_str)
 
     x=await conn.fetchrow(
         f"SELECT * FROM dbo.author where name = '{author}'"
@@ -44,8 +53,7 @@ async def create_thread(doi,title,abstract,author):
 
 
 async def check_user(username):
-    conn = await asyncpg.connect(user='example', password='passw0rd',
-                                database='default_database', host='127.0.0.1', port=5432)
+    conn = await asyncpg.connect(**conn_str)
 
     data = await conn.fetchrow(
         f"SELECT * FROM dbo.user  where account_name = '{username}'"
@@ -53,8 +61,7 @@ async def check_user(username):
     await conn.close()
     return data
 async def get_chat(thread_id):
-    conn = await asyncpg.connect(user='example', password='passw0rd',
-                                database='default_database', host='127.0.0.1', port=5432)
+    conn = await asyncpg.connect(**conn_str)
 
     data = await conn.fetch(
         f"SELECT (user_id,body) FROM dbo.comment where thread_id = '{thread_id}'"
@@ -63,8 +70,7 @@ async def get_chat(thread_id):
     await conn.close()
     return data
 async def send_message(thread_id,username,text):
-    conn = await asyncpg.connect(user='example', password='passw0rd',
-                                database='default_database', host='127.0.0.1', port=5432)
+    conn = await asyncpg.connect(**conn_str)
     user_id = await conn.fetch(
         f"SELECT id FROM dbo.user where account_name = '{username}'"
     )
@@ -80,8 +86,7 @@ async def send_message(thread_id,username,text):
     return data
 
 async def check_thread(doi):
-    conn = await asyncpg.connect(user='example', password='passw0rd',
-                                database='default_database', host='127.0.0.1', port=5432)
+    conn = await asyncpg.connect(**conn_str)
 
     data = await conn.fetchrow(
         f"SELECT * FROM dbo.thread where doi = '{doi}'"
@@ -89,8 +94,7 @@ async def check_thread(doi):
     await conn.close()
     return data
 async def get_thread_id(doi):
-    conn = await asyncpg.connect(user='example', password='passw0rd',
-                                database='default_database', host='127.0.0.1', port=5432)
+    conn = await asyncpg.connect(**conn_str)
 
     id = await conn.fetch(
         f"SELECT id FROM dbo.thread where doi = '{doi}'"
@@ -130,7 +134,7 @@ while using:
     else:
         print(f"Welcome back {user_name}!")
     if user_name=="exit":
-        break;
+        break
     if user_name in users:
         print(f"Welcome back {user_name}")
     users.add(user_name)
