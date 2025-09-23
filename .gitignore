@@ -1,4 +1,9 @@
 node_modules
 package-lock.json
+
+# database
 db/db-creds.env
 db/db
+
+# cache folders
+__pycache__
