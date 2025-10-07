@@ -3,13 +3,20 @@ import json
 import asyncio
 import asyncpg
 
+import os
+
+
+from sqlalchemy import create_engine
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy import String
+from sqlalchemy import DateTime
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+
 from conn import *
-
-def check_doi(doi):
-    r = requests.get(f"https://api.crossref.org/works/{doi}")
-    return r.status_code == 200
-
-print("enter 'exit' to quit")
 
 conn_str = {
     "user": user,
@@ -18,168 +25,163 @@ conn_str = {
     "host": host,
     "port": port
 }
-
-async def create_user(username,password):
-    conn = await asyncpg.connect(**conn_str)
-
-    await conn.execute(
-        # todo hash the password
-        f"insert into dbo.user (account_name, bio, password_hash, role, last_online, last_post_time) values ('{username}', 'bio', '{password}', 1, NOW(), NOW())"
-    )
-    await conn.close()
-async def create_thread(doi,title,abstract,author):
-    conn = await asyncpg.connect(**conn_str)
-
-    x=await conn.fetchrow(
-        f"SELECT * FROM dbo.author where name = '{author}'"
-    )
-
-    if not x:
-        await conn.execute("insert into dbo.author (name,email) values ($1,'na')",author
-    )
+engine = create_engine(f"postgresql+psycopg2://{conn_str["user"]}:{conn_str["password"]}@{conn_str["host"]}:{conn_str["port"]}/{conn_str["database"]}")
+from datetime import datetime
 
 
-    x = await conn.fetch(
-        f"SELECT id FROM dbo.author where name = '{author}'"
-    )
-    x=x[0]['id']
+class Base(DeclarativeBase):
+    pass
+class Author(Base):
+    __tablename__ = "author"
+    __table_args__ = {'schema': 'dbo'}
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name:Mapped[str] = mapped_column(String(50))
+    email:Mapped[str] = mapped_column(String(50))
 
 
+class User(Base):
+    __tablename__ = "user"
+    __table_args__ = {'schema': 'dbo'}
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account_name:Mapped[str] = mapped_column(String(50))
+    bio:Mapped[str] = mapped_column(String(250))
+    password_hash:Mapped[str] = mapped_column(String(250))
+    role:Mapped[int] = mapped_column(String(250))
+    last_online:Mapped[DateTime] = mapped_column(DateTime)
+    last_post_time:Mapped[DateTime] = mapped_column(DateTime)
+class Thread(Base):
+    __tablename__ = "thread"
+    __table_args__ = {'schema': 'dbo'}
+    id: Mapped[int] = mapped_column(primary_key=True)
+    doi:Mapped[str] = mapped_column(String(50))
+    created_at:Mapped[DateTime] = mapped_column(DateTime)
+    abstract:Mapped[str] = mapped_column(String(5000))
+    title:Mapped[str] = mapped_column(String(50))
+    author_id: Mapped[int] = mapped_column(ForeignKey("dbo.author.id"))
+    Base.metadata.create_all(engine)
 
-    await conn.execute(
-        "insert into dbo.thread (doi, created_at, abstract, title,author_id) values ($1, NOW(), $2, $3,$4)",doi,abstract,title,x
-    )
-    await conn.close()
+class Comment(Base):
+    __tablename__ = "comment"
+    __table_args__ = {'schema': 'dbo'}
+    id: Mapped[int] = mapped_column(primary_key=True)
+    thread_id: Mapped[int] = mapped_column(ForeignKey("dbo.thread.id"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("dbo.user.id"))
+    body:Mapped[str] = mapped_column(String(5000))
+    created_at:Mapped[DateTime] = mapped_column(DateTime)
 
-
-async def check_user(username):
-    conn = await asyncpg.connect(**conn_str)
-
-    data = await conn.fetchrow(
-        f"SELECT * FROM dbo.user  where account_name = '{username}'"
-    )
-    await conn.close()
-    return data
-async def get_chat(thread_id):
-    conn = await asyncpg.connect(**conn_str)
-
-    data = await conn.fetch(
-        f"SELECT (user_id,body) FROM dbo.comment where thread_id = '{thread_id}'"
-    )
-
-    await conn.close()
-    return data
-async def send_message(thread_id,username,text):
-    conn = await asyncpg.connect(**conn_str)
-    user_id = await conn.fetch(
-        f"SELECT id FROM dbo.user where account_name = '{username}'"
-    )
-    user_id=user_id[0]['id']
-
-
-
-    
-    data = await conn.fetch(
-        "Insert into dbo.comment (thread_id,user_id,body,created_at) values ($1,$2,$3,NOW())",thread_id,user_id,text
-    )
-    await conn.close()
-    return data
-
-async def check_thread(doi):
-    conn = await asyncpg.connect(**conn_str)
-
-    data = await conn.fetchrow(
-        f"SELECT * FROM dbo.thread where doi = '{doi}'"
-    )
-    await conn.close()
-    return data
-async def get_thread_id(doi):
-    conn = await asyncpg.connect(**conn_str)
-
-    id = await conn.fetch(
-        f"SELECT id FROM dbo.thread where doi = '{doi}'"
-    )
-    id = id[0]['id']
-
-    id = int(id)
-    await conn.close()
-    return id
-
-
-
-
-
-
-using = True
-
-users = set()
-
-threads = dict()
-
-while using:
-    user_name=input("Enter username: ")
-
-    user_exists = asyncio.run(check_user(user_name))
-
-    if not user_exists:
-        print("Welcome!")
-        password_1 = "___"
-        password_2 = ""
-        while password_1!=password_2:
-            password_1 = input("Enter password: ")
-            password_2 = input("Enter password again: ")
-            if password_1!=password_2:
-                print("Passwords do not match")
-        asyncio.run(create_user(user_name,password_1))
+def create_user(username,bio,password):
+    if check_user(username):
+        print("user already exists")
+        return
+    with Session(engine) as session:
+        user = User(account_name = username,bio=bio,password_hash=password,role=1,last_online=datetime.now(),last_post_time=datetime.now())
+        session.add_all([user])
+        session.commit()
+def create_thread(doi,abstract,title,author_id):
+    if check_thread(doi):
+        print("thread already exists")
+        return
+    with Session(engine) as session:
+        thread = Thread(doi=doi,created_at=datetime.now(),abstract=abstract,title=title,author_id=author_id)
+        session.add_all([thread])
+        session.commit()
+def check_thread(doi):
+    data=[]
+    with Session(engine) as session:
+        stmt = select(Thread).where(Thread.doi.in_([doi]))
+        data = session.scalars(stmt)
+        data=list(data)
+    if len(data)==0:
+        return None
     else:
-        print(f"Welcome back {user_name}!")
-    if user_name=="exit":
-        break
-    if user_name in users:
-        print(f"Welcome back {user_name}")
-    users.add(user_name)
+        return data[0].id
 
-    logged_in = True
+def create_comment(thread_id,user_id,body):
+    with Session(engine) as session:
+        comment = Comment(thread_id=thread_id,user_id=user_id,body=body,created_at=datetime.now())
+        session.add_all([comment])
+        session.commit()
 
-    while True:
-        #try 10.1002/jcd.21375
-        chat = input("Enter DOI (form: 10.####/data): ")
-        if chat=="exit":
-            break
-        if check_doi(chat):
-            if asyncio.run(check_thread(chat)):
-                print("entered into",chat,"chat")
-            else:
-                print("Chat created for",chat)
-                r = requests.get(f"https://api.crossref.org/works/{chat}")
-                data = r.json()
-                title = (data["message"]["title"])[0]
-                abstract = (data["message"]["abstract"])[0]
-                author = (data["message"]["author"][0])["given"] + " " + (data["message"]["author"][0])["family"]
-                print(chat,title,abstract)
-                asyncio.run(create_thread(chat,title,abstract,author))
-
-            thread_id = asyncio.run(get_thread_id(chat))
-            x = asyncio.run(get_chat(thread_id))
-            print(x)
-            user_input = input()
-            while user_input!="exit":
-                thread_id = asyncio.run(get_thread_id(chat))
-
-                asyncio.run(send_message(thread_id,user_name,user_input))
-
-                x = asyncio.run(get_chat(thread_id))
-                print(x)
-
-                user_input = input()
-            if user_input=="exit":
-                print(f"Thank you for visiting {chat}!")
-        else:
-            print("invalid DOI or DOI not found")
+def create_author(name,email):
+    with Session(engine) as session:
+        author = Author(name=name,email=email)
+        session.add_all([author])
+        session.commit()
 
 
+def check_doi(doi):
+    r = requests.get(f"https://api.crossref.org/works/{doi}")
+    return r.status_code == 200
+
+def check_user(username):
+    data=[]
+    with Session(engine) as session:
+        stmt = select(User).where(User.account_name.in_([username]))
+        data = session.scalars(stmt)
+        data=list(data)
+    if len(data)==0:
+        return None
+    else:
+        return data[0].id
+def get_user_by_id(user_id):
+    data=[]
+    with Session(engine) as session:
+        stmt = select(User).where(User.id.in_([user_id]))
+        data = session.scalars(stmt)
+        data=list(data)
+    if len(data)==0:
+        return None
+    else:
+        return data[0].account_name
+ 
+def check_author(name):
+    data=[]
+    with Session(engine) as session:
+        stmt = select(Author).where(Author.name.in_([name]))
+        data = session.scalars(stmt)
+        data=list(data)
+    if len(data)==0:
+        return None
+    else:
+        return data[0].id
+
+def get_raw_chat(thread_id):
+    data=[]
+    with Session(engine) as session:
+        stmt = select(Comment).where(Comment.thread_id.in_([thread_id])).order_by(Comment.created_at)
+        data = session.scalars(stmt)
+        data=list(data)
+    return data
 
 
 
 
+user_id=check_user("John")
+if not user_id:
+    create_user("John","I am a CS student","password")
+    user_id=check_user("John")
+author_id = check_author("Justin Schroeder")
+if not author_id:
+    create_author("Justin Schroeder","...@...")
+    author_id = check_author("Justin Schroeder")
+thread_id=check_thread("10.1002/jgt.21783")
+if not thread_id:
+    create_thread("10.1002/jgt.21783",'''In ...''',"Orientable Hamilton Cycle Embeddings of Complete Tripartite Graphs II: Voltage Graph Constructions and Applications",author_id)
+    thread_id=check_thread("10.1002/jgt.21783")
+print(user_id)
+print(thread_id)
+print(author_id)
 
+while True:
+    if os.name == 'nt':  
+        os.system('cls')
+    else:  
+        os.system('clear')
+    thread=get_raw_chat(thread_id)
+    for message in thread:
+        username =get_user_by_id(message.user_id)
+        body = message.body
+        print(username,":",body)
+    username =get_user_by_id(user_id)
+    new_message = input(username+" : ")
+    create_comment(thread_id,user_id,new_message)
