@@ -2,8 +2,9 @@
 Project for the CSC470 course. A DOI Lookup &amp; Discussion board for researchers, observers, and the curious alike.
 
 ## Setup instructions (for linux)
-1. Create a virtual environment called `env`
+1. Create a virtual environment called `env` and activate it
   - `python3 -m venv env`
+  - `source env/bin/activate`
 2. Pip install `requirements.txt`
   - `pip install -r requirements.txt`
 3. Start db docker container
