@@ -7,6 +7,3 @@ db/db
 
 # cache folders
 __pycache__
-
-#python venv
-.linux-venv

@@ -12,11 +12,11 @@ def check_doi(doi):
 print("enter 'exit' to quit")
 
 conn_str = {
-    "user": user,
-    "password": password,
-    "database": database,
-    "host": host,
-    "port": port
+    "user": "example",
+    "password": "passw0rd",
+    "database": "doi",
+    "host": "localhost",
+    "port": 5432
 }
 
 async def create_user(username,password):
