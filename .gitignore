@@ -1,12 +1,13 @@
 node_modules
 package-lock.json
 
-# database
-db/db-creds.env
-db/db
 
 #venv
 env/
+.linux-venv/
 
 # cache folders
 __pycache__
+
+#temp files
+*~
