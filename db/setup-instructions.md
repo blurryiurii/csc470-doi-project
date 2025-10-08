@@ -1,6 +1,5 @@
 # Set-up on a VM (such as GCP)
 Free tier: spin up an E2-micro instance
-Optional: Add an ssh key on your machine and import it into GCP's VM
 
 Update the machine with `sudo apt update && sudo apt upgrade`
 Install Docker:
@@ -59,3 +58,10 @@ Create a database, add tables with columns in accordance with our [Plan](https:/
 To initialize, run the `init-db.sql` script to initialize the schema and tables.
 
 Now, Postgres should be ready to populate!
+
+
+# Connecting to the VM
+Add an ssh key on your machine and import it into GCP's VM
+On linux: `ssh-keygen -t ed25519 -C "youremail@example.com"`
+- Walk through the instructions
+We'll need to add the public key to the GCP VM.
