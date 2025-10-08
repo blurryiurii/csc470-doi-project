@@ -4,6 +4,6 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY proof_of_concept.py .
 COPY conn.py .
-expose 5000/tcp
+expose 6767/tcp
 
 CMD ["python","proof_of_concept.py"] 
