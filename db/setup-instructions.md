@@ -1,3 +1,31 @@
+# Set-up on a VM (such as GCP)
+Free tier: spin up an E2-micro instance
+Optional: Add an ssh key on your machine and import it into GCP's VM
+
+Update the machine with `sudo apt update && sudo apt upgrade`
+Install Docker:
+```
+# Add Docker's official GPG key:
+sudo apt-get update
+sudo apt-get install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+
+# Install Docker
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+```
+clone the git repo on the VM
+change `db-creds.env`
+run the docker compose file
+
 # PostgreSQL
 - Install [docker](https://docs.docker.com/compose/install/) (official one, with `docker compose` support)
 - Ensure the docker daemon is running (`sudo systemctl status docker.service`)
