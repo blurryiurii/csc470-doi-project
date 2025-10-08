@@ -4,12 +4,18 @@
 # Reference this: https://github.com/felipewom/docker-compose-postgres/
 services:
   database:
-    image: 'postgres:17'
+    image: 'postgres:18'
     ports:
       - 5432:5432
     env_file:
     - "db-creds.env"
     volumes:
-    - "db:/var/lib/postgresql/17/docker"
-volumes:
-  db: 
+      - "./db:/var/lib/postgresql/18/docker"
+      - "./init-db.sql:/docker-entrypoint-initdb.d/init.sql"
+  web_server:
+    build: .
+    ports:
+      - 5000:5000
+    depends_on:
+      - database
+    restart: always
