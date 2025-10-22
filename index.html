@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <title>Top posts</title>
+    
+
+    <link rel="icon" type="image/x-icon" href="https://assets.softr-files.com/applications/3e239666-6b5f-4c1c-a193-cbfa055e46cb/assets/4d68e1f7-dd20-43c1-b671-0f377b104f2a.jpeg?rnd=1679037278062"/>
+
+
+    <script src="https://unpkg.com/@phosphor-icons/web@2.0.3"></script>
+
+    <link href="https://assets.softr-files.com/libs/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://assets.softr-files.com/libs/choices.js/10.2.0/choices.min.css" rel="stylesheet">
+    <script src="https://assets.softr-files.com/libs/choices.js/10.2.0/choices.min.js"></script>
+
+
+    <link rel="stylesheet" href="style.css" type="">
+    <script>
+        const APPID = '3e239666-6b5f-4c1c-a193-cbfa055e46cb';
+        const isUsersConnectionDatasourceUnified = 'true' === 'true';
+    </script>
+    <script>
+        const USER_ID = "userId";
+        const APP_ID = "appId";
+        const SIGN_IN_REDIRECT_URL = "signInRedirectionUrl";
+        const SIGN_OUT_REDIRECT_URL = "signOutRedirectionUrl";
+
+        function getEnvironmentSpecificUrl() {
+            const hostname = window.location.hostname;
+            const stagingMatch = hostname.match(/staging\d{2}/);
+
+            if (stagingMatch) {
+                return `https://studio-${stagingMatch[0]}.softr.io/applications/${APPID}/users-collection/users`;
+            } else {
+                return `https://studio.softr.io/applications/${APPID}/users-collection/users`;
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            window.addEventListener('message', (event) => {
+                const message = event.data;
+                if (message.name === 'user-sign-out-triggered') {
+                    choices.setChoiceByValue(nonLoggedInUser.value);
+                    window.history.pushState(null, '', '/' + window.location.search);
+                }
+            });
+
+            window.addEventListener('message', (event) => {
+                if (event.data.name === 'previewIframeLoaded') {
+                    getUsers();
+                }
+            });
+
+            const iframe = document.querySelector(".full-screen-preview__iframe");
+            const links = document.querySelectorAll(".icon");
+            const selectElement = document.getElementById('viewSelect');
+
+            const url = getEnvironmentSpecificUrl();
+
+            const loadingTemplate = `
+                            <div class="loading-spinner">
+                                <i class="ph ph-spinner ph-spin"></i>
+                                <div class="message">Loading users...</div>
+                            </div>
+                    `;
+
+            const noChoicesTemplate = `
+                            <div class="empty-user-list">
+                                <i class="ph ph-info"></i>
+                                <div class="message">
+                                    Your application doesn't have registered app users yet.
+                                     <br>
+                                     To preview the logged-in experience,
+                                    <a href=${url}
+                                    target="_blank">set up users in your User Settings.</a>
+                                </div>
+                            </div>
+                    `;
+            let nonLoggedInUser = {
+                value: 'Non-logged-in user',
+                customProperties: {
+                    name: '',
+                    email: 'Non-logged-in user',
+                    userGroups: [],
+                    image: '',
+                    initials: ''
+                }
+            };
+
+            let selectedUserEmail = '';
+            let applicationUsers = [];
+
+            setSelectedScreenSize();
+            initTooltip();
+            getUrlQRCode();
+
+            iframe.addEventListener('load', function () {
+                const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+
+                const intervalId = setInterval(() => {
+                    updateLinksInIframe(iframeDocument);
+                }, 1000);
+
+                // Cleanup function to clear the interval when the iframe is unloaded
+                iframe.addEventListener('unload', function () {
+                    clearInterval(intervalId);
+                });
+            });
+
+            const choices = new Choices(selectElement, {
+                searchEnabled: true,
+                shouldSort: false,
+                allowHTML: true,
+                itemSelectText: '',
+                renderChoiceLimit: -1,
+                searchResultLimit: 100,
+                choices: applicationUsers,
+                renderSelectedChoices: 'always',
+                searchPlaceholderValue: 'Search users',
+                noChoicesText: loadingTemplate,
+                fuseOptions: {
+                    threshold: 0.1,
+                    distance: 1000
+                },
+                classNames: {
+                    containerOuter: 'choices',
+                    containerInner: 'choices__inner',
+                    input: 'choices__input',
+                    list: 'choices__list',
+                    listItem: 'choices__list--single',
+                },
+                callbackOnCreateTemplates: function (template) {
+                    return {
+                        ...template,
+                        choice: (event, data) => {
+                            const {classNames} = event;
+                            if(!data.selected && choices?.getValue()?.value === data.label) {
+                                data.selected = true;
+                            }
+
+                            const {imageUrl, initials, name, email, userGroups} = data.customProperties;
+                            return template(
+                                email === 'No-users' ?
+                                    noChoicesTemplate :
+                                    (email === 'separator' ? `<div class="non-logged-in-separator choices__group" data-group data-id="${data.id}" data-value="${data.value}" role="group"><div class="choices__heading"></div></div>` :
+
+                                        `
+                                             <div class="${classNames.item} ${classNames.itemChoice} ${data.selected ? classNames.selectedState : ''}" data-select-text="${this.config.itemSelectText}" data-choice ${data.disabled ? 'data-choice-disabled aria-disabled="true"' : 'data-choice-selectable'} data-id="${data.id}" data-value="${data.value}" ${data.groupId > 0 ? 'role="treeitem"' : 'role="option"'}>
+                                                <div class="user">
+                                                ${initials ?
+                                            `<div class="avatar">
+                                                       ${imageUrl ? `<div class="image" style="background-image: url('${imageUrl}')"></div>` : ''}
+                                                       ${!imageUrl ? `<div class="user-initials" style="background: ${randomBackground()}">${initials}</div>` : ''}
+                                                    </div>
+                                                    <div class="info">
+                                                        ${name ? `<div class="name" title="${name}">${name}</div>` : ''}
+                                                        ${email ? `<div class="email" title="${email}">${email}</div>` : ''}
+                                                        ${userGroups && Array.isArray(userGroups) ? userGroups.map(group => `<div class="userGroups">${group}</div>`).join('') : ''}</div>`
+                                            :
+                                            `<div class="info non-logged-in ${data.selected ? classNames.selectedState : ''}"> ${email ? `<div class="email">${email}</div>` : ''}</div>`
+                                        }
+                                                    ${
+                                            data.selected
+                                                ? (initials ? '<i class="ph ph-check check"></i>' : '<i class="ph ph-check check non-logged-in"></i>')
+                                                : ''
+                                        }
+                                                </div>
+                                              </div>
+                                    `), classNames, data);
+                        },
+                        item: (event, data) => {
+                            const {classNames} = event;
+                            const {imageUrl, initials, name, email, userGroups} = data.customProperties;
+                            return template(
+                                `
+                                                <div class="user">
+                                                    <div class="avatar">
+                                                       ${email === 'Non-logged-in user' ? ` <i class="ph ph-globe"></i>` : `<i class="ph ph-user"></i>`}
+                                                    </div>
+                                                    <div class="info">
+                                                        ${email ? `<div class="email">${email}</div>` : ''}
+                                                    </div>
+                                                </div>
+
+                                    `, classNames, data);
+                        }
+                    };
+                },
+            });
+
+            function reloadPreview() {
+                //setting device type to URL, that BE can get it and handle visibility checks
+                const urlParams = new URLSearchParams(window.location.search);
+                urlParams.set('device', localStorage.getItem('preview-screen-size'));
+                window.location.search = urlParams.toString();
+            }
+
+            function setScreenActiveState(target) {
+
+
+                iframe.classList.remove("iframe-preview--mobile");
+                iframe.classList.remove("iframe-preview--tablet");
+
+                links.forEach(function (link) {
+                    link.classList.remove("active");
+                });
+                target.classList.add("active");
+
+                if (target.classList.contains("desktop")) {
+                    localStorage.setItem('preview-screen-size', 'desktop')
+                } else if (target.classList.contains("tablet")) {
+                    iframe.classList.add("iframe-preview--tablet");
+                    localStorage.setItem('preview-screen-size', 'tablet')
+                } else if (target.classList.contains("mobile")) {
+                    iframe.classList.add("iframe-preview--mobile");
+                    localStorage.setItem('preview-screen-size', 'mobile')
+                }
+                reloadPreview();
+            }
+
+            function setSelectedScreenSize() {
+                const screenSizes = ['mobile', 'tablet', 'desktop'];
+                const screenSizeClassPrefix = 'iframe-preview--';
+
+                iframe.classList.remove(...screenSizes.map(size => screenSizeClassPrefix + size));
+                links.forEach(link => link.classList.remove('active'));
+                let screenSize = localStorage.getItem('preview-screen-size');
+                if (!screenSize) {
+                    screenSize = 'desktop';
+                    localStorage.setItem('preview-screen-size', screenSize);
+                }
+                if (screenSizes.includes(screenSize)) {
+                    iframe.classList.add(screenSizeClassPrefix + screenSize);
+                    document.querySelector('.' + screenSize).classList.add('active');
+                }
+            }
+
+            document.addEventListener("click", function (event) {
+                const target = event.target;
+                if (target.closest(".icon")) {
+                    event.preventDefault();
+                    setScreenActiveState(target.closest(".icon"));
+                    getUrlQRCode();
+                }
+            });
+
+            selectElement.addEventListener('change', function (e) {
+                selectedUserEmail = this.value;
+                handleSelectChange();
+            });
+
+            function handleSubmit() {
+                const checkboxValue = document.querySelector('.custom-checkbox input')?.checked;
+                if (checkboxValue) {
+                    localStorage.setItem('isConfirmationModalDisabled', 'true');
+                }
+
+                onUserSelect();
+
+                $('#userConfirmationModal').modal('hide');
+            }
+
+            function handleSelectChange() {
+                const isConfirmationModalDisabled = localStorage.getItem('isConfirmationModalDisabled');
+                if (isConfirmationModalDisabled !== 'true') {
+                    $('#userConfirmationModal').modal('show');
+                } else {
+                    onUserSelect();
+                }
+            }
+
+            $('#userConfirmationModal').on('show.bs.modal', function (e) {
+                const btn = document.querySelector('.submit-btn');
+                selectElement.removeEventListener('change', handleSelectChange);
+                btn.removeEventListener('click', handleSubmit);
+                btn.addEventListener('click', handleSubmit);
+
+
+                $('.modal-body').html(`
+                            <p>You are about to preview the latest version of your app, including unpublished changes, as
+                            <strong>${selectedUserEmail}</strong>.</p>
+                        <br>
+                        <p>Please note that any actions you perform while previewing, such as adding, editing, or deleting data,
+                            will modify the data in your data source.</p>
+                        `)
+            })
+
+            const userSearchInputHandler = function(event) {
+                if (!event.target.value) {
+                    choices.setChoices(applicationUsers, 'value', 'label', true);
+                }
+            }
+
+            async function loadApplicationUsers() {
+                try {
+                    let url = "/templates/studio/users";
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error("HTTP error " + response.status);
+                    }
+                    return  await response.json();
+                } catch (err) {
+                    console.log("An error occurred while fetching the API data.", err);
+                    showToast();
+                }
+            }
+
+            async function fetchQRCodeForURL(screenSize) {
+                try {
+                    let url = "/templates/studio/url-qr-code";
+                    let href =  window.location.href;
+                    if (!href.includes('device=' + screenSize)) {
+                        href += '&device=' + screenSize;
+                    }
+
+                    let bodyData = JSON.stringify({ url: href});
+
+                    const response = await fetch(url, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: bodyData,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error("HTTP error " + response.status);
+                    }
+                    return  response.arrayBuffer();
+                } catch (err) {
+                    console.log("An error occurred while fetching QR code for URL.", err);
+                }
+            }
+
+            async function loadCachedPreviewUsers() {
+                try {
+                    let url = "/templates/studio/users/load-cached-users";
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error("HTTP error " + response.status);
+                    }
+                    return  await response.json();
+                } catch (err) {
+                    console.log("An error occurred while fetching the API data.", err);
+                    showToast();
+                }
+            }
+
+            async function getUsers() {
+                // Fetch and apply application users immediately
+                let appUsers = await loadApplicationUsers();
+                applyUserData(appUsers);
+
+                const loadDsUsers = mustLoadDsUsers(appUsers);
+                if (loadDsUsers) {
+                    loadCachedPreviewUsers()
+                        .then(cachedUsers => {
+                            const mergedUsers = mergeUsers(appUsers, cachedUsers || []);
+                            applyUserData(mergedUsers);
+                        }).catch(error => {
+                        console.error("Error loading cached users:", error);
+                    });
+                }
+            }
+
+            function mustLoadDsUsers(appUsers) {
+                const userCount = appUsers.length;
+                const threshold = isUsersConnectionDatasourceUnified ? 1000 : 200;
+                return userCount <= threshold;
+            }
+
+            async function getUrlQRCode() {
+                const screenSize = localStorage.getItem('preview-screen-size');
+                // Do not request QR image if desktop is selected.
+                if (screenSize === 'desktop') {
+                    return;
+                }
+
+                const image = await fetchQRCodeForURL(screenSize);
+                const imgElement = document.getElementById('urlQRCodeImage');
+                const divElement = document.getElementById('urlQRDiv');
+
+                const base64String = btoa(
+                    new Uint8Array(image)
+                        .reduce((data, byte) => data + String.fromCharCode(byte), '')
+                );
+
+                imgElement.src = `data:image/jpeg;base64,${base64String}`;
+                divElement.style.display = 'flex'; // make QR code div visible
+            }
+
+            function mergeUsers(appUsers, cachedUsers) {
+                const mergedUsers = [...appUsers];
+                const emails = new Set(appUsers.map(user => user.email));
+                for (const cachedUser of cachedUsers) {
+                    if (emails.has(cachedUser.email)) {
+                        const index = mergedUsers.findIndex(user => user.email === cachedUser.email);
+                        mergedUsers[index] = cachedUser;
+                    }
+                }
+                return mergedUsers;
+            }
+
+            function getUserInitials(fullName, email) {
+                const words = fullName ? fullName.split(' ') : [];
+
+                // If the user has more than two words in their name, take the first two
+                const initials = words.length > 2 ? words.slice(0, 2) : words;
+
+                const result = initials.reduce((acc, word) => {
+                    if (word.trim() !== '') {
+                        return acc + word[0];
+                    }
+                    return acc;
+                }, '');
+
+                // If the result is empty, fallback to the first two letters of the email
+                const initialsUpperCase = result || (email ? email.slice(0, 2) : '');
+
+                return initialsUpperCase.toUpperCase();
+            }
+
+            function randomBackground() {
+                const colors = ['#44B0FF', '#FFB544', '#044878', '#1B998B', '#E84855', '#C67AED', '#5D759D', '#F48498', '#725752', '#6564DB'];
+                const randomIndex = Math.floor(Math.random() * colors.length);
+                return colors[randomIndex];
+            }
+
+            function applyUserData(jsonData) {
+                const result = jsonData.map(({
+                                                 email,
+                                                 name = '',
+                                                 id,
+                                                 userGroups = [],
+                                                 imageUrl = '',
+                                                 isLoggedInUser = false
+                                             }) => ({
+                    value: email,
+                    id,
+                    isLoggedInUser,
+                    customProperties: {
+                        name,
+                        email,
+                        userGroups,
+                        imageUrl,
+                        initials: getUserInitials(name, email),
+                        id
+                    }
+                }));
+
+                applicationUsers = [
+                    {
+                        label: '',
+                        id: '',
+                        choices: [nonLoggedInUser]
+                    },
+                    {
+                        label: '',
+                        id: '',
+                        choices: [
+                            {
+                                value: 'separator',
+                                id: 'anonymous',
+                                customProperties: {
+                                    name: '',
+                                    email: 'separator',
+                                    userGroups: [],
+                                    image: '',
+                                    initials: ''
+                                }
+                            }
+                        ]
+                    },
+                    jsonData.length ?
+                        {
+                            label: 'USERS',
+                            id: 'users',
+                            choices: result
+
+                        } :
+                        {
+                            label: 'USERS',
+                            id: 'users',
+                            selectable: false,
+                            choices: [
+                                {
+                                    value: 'No-users',
+                                    id: 'anonymous',
+                                    customProperties: {
+                                        name: '',
+                                        email: 'No-users',
+                                        userGroups: [],
+                                        image: '',
+                                        initials: ''
+                                    }
+                                }
+                            ]
+                        }
+                ];
+
+                choices.clearChoices();
+                choices.setChoices(applicationUsers);
+
+                selectElement.addEventListener(
+                    'showDropdown', () => {
+                        // this event listener is needed for cases when user remove search text with cmd/ctrl+A
+                        // in that case search event is not triggered
+                        document.querySelector('.choices__list .choices__input').addEventListener('input', userSearchInputHandler);
+                    });
+
+                selectElement.addEventListener(
+                    'hideDropdown', (event) => {
+                        document.querySelector('.choices__list .choices__input').removeEventListener('input', userSearchInputHandler);
+                        if (choices.input.value) {
+                            choices.clearInput();
+                        }
+                        choices.clearChoices();
+                        choices.setChoices(applicationUsers, 'value', 'label', true);
+                    });
+
+                selectElement.addEventListener(
+                    'search',
+                    function(event) {
+                        if (event.detail.value) {
+                            const filteredUsers = [applicationUsers[0],
+                                {
+                                    label: 'USERS',
+                                    choices: applicationUsers[2].choices.filter((choice) =>
+                                        choice.value.toLowerCase().includes(event.detail.value.toLowerCase()) ||
+                                        choice.customProperties?.name?.toLowerCase().includes(event.detail.value.toLowerCase())
+                                    )
+                                }];
+                            choices.setChoices(filteredUsers, 'value', 'label', true);
+                        } else {
+                            choices.setChoices(applicationUsers, 'value', 'label', true);
+                        }
+                    },
+                    false,
+                );
+
+                function setSelectedUser() {
+                    const [nonLoggedInUser, separator, otherUsers] = applicationUsers;
+                    const selectedUserId = choices.getValue()?.customProperties?.id;
+
+                    // if autoUser is true, then after page preview the default user is selected automatically,
+                    // and we need that user in the local storage for further manipulations with users from the preview toolbar
+                    setUserRelatedPropertiesIntoLocalStorage(selectedUserId);
+
+                    if (selectedUserId) {
+                        const [_, otherUsers = {choices: []}] = applicationUsers;
+                        const selectedUser = otherUsers.choices.find(user => user.customProperties?.id === selectedUserId);
+                        choices.setChoiceByValue(selectedUser?.value);
+                    } else {
+                        const loggedInUser = otherUsers.choices.find((user) => user.isLoggedInUser);
+                        if (loggedInUser) {
+                            choices.setChoiceByValue(loggedInUser.value);
+                        } else {
+                            choices.setChoiceByValue(nonLoggedInUser.choices[0].value);
+                        }
+                    }
+                }
+
+                setSelectedUser();
+
+            }
+
+            /*
+             * @param email - optional; used in case the user email is updated in the Account Settings. (the block triggers an event with the new email)
+             */
+            function onUserSelect(email) {
+                const [nonLoggedInUser, separator, otherUsers = {choices: []}] = applicationUsers;
+                const selectedUser = otherUsers.choices.find(user => user.value === email || user.value === selectedUserEmail);
+                let userId = selectedUser?.id || 'anonymous';
+
+                let url = "/templates/studio/impersonate/" + userId;
+
+                let previousUserId = window.localStorage.getItem(USER_ID);
+                const previousAppId = window.localStorage.getItem(APP_ID);
+
+                // if the other app is previewed, then the previous user and application Id should be removed from the local storage
+                if (previousAppId !== APPID) {
+                    previousUserId = 'anonymous';
+                    clearUserLocalStorageProperties()
+                    window.localStorage.removeItem(APP_ID);
+                }
+
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error("HTTP error " + response.status);
+                        }
+
+                        const currentUrl = new URL(window.location.href);
+                        const queryParams = new URLSearchParams(currentUrl.search);
+                        queryParams.delete('autoUser');
+                        let path = currentUrl.pathname;
+
+                        if (userId === 'anonymous') {
+                            const previousUserSignOutRedirectionUrl = window.localStorage.getItem(SIGN_OUT_REDIRECT_URL);
+                            // If previously there was a logged-in user, and there is a signOutRedirectionUrl in the local storage, then simulate signout
+                            if (previousUserSignOutRedirectionUrl && previousUserId !== 'undefined' &&  previousUserId !== 'anonymous') {
+                                path = previousUserSignOutRedirectionUrl;
+                                clearUserLocalStorageProperties();
+                            }
+                            queryParams.delete('recordId');
+                            location.href = `${window.location.origin}${path}?${queryParams.toString()}`;
+                        }
+
+                        const currentUserSignInRedirectionUrl = getCookieValue('signInRedirectionUrl');
+
+                        // If previously there is no logged-in user,
+                        // it means this is the sign-in operation from the non-logged-in user state,
+                        // and the user should be redirected to the after signIn page based on TokenResource Value
+                        if (currentUserSignInRedirectionUrl && (previousUserId === 'undefined' ||  previousUserId === 'anonymous')) {
+                            path = currentUserSignInRedirectionUrl;
+                        }
+
+                        //check next-page param in iframe
+                        const iframeParams = new URLSearchParams(iframe.contentDocument.location.search);
+                        const nextPageParam = iframeParams.get('next-page');
+
+                        // If there is a nextPage param in the iframe, then should be prioritized that param against previousUserSignInRedirectionUrl
+                        if (nextPageParam && userId !== "anonymous") {
+                            path = nextPageParam.split("?")[0]
+                            queryParams.delete('next-page');
+                        }
+
+                        setUserRelatedPropertiesIntoLocalStorage(userId);
+
+                        location.href = `${window.location.origin}${path}?${queryParams.toString()}`;
+                    })
+                    .catch(error => {
+                        console.log("An error occurred: ", error);
+                        showToast();
+                    });
+
+            }
+
+            // These local storage values are used to determine:
+            // 1. whether is previewing the same app or not.
+            // 2. whether is switching the user in the dropdown, or selecting a new user from the non-logged-in user state
+            function setUserRelatedPropertiesIntoLocalStorage(userId) {
+                setCurrentUserIdIntoLocalStorage(userId);
+                setCurrentAppIdIntoLocalStorage(APPID);
+                setRedirectionUrlsIntoLocalStorage();
+            }
+            function setCurrentUserIdIntoLocalStorage(selectedUserId) {
+                window.localStorage.setItem(USER_ID, selectedUserId);
+            }
+
+            function setCurrentAppIdIntoLocalStorage(appId) {
+                window.localStorage.setItem(APP_ID, appId);
+            }
+
+            function setRedirectionUrlsIntoLocalStorage() {
+                const signInRedirectionUrl = getCookieValue(SIGN_IN_REDIRECT_URL);
+                const signOutRedirectionUrl = getCookieValue(SIGN_OUT_REDIRECT_URL);
+                window.localStorage.setItem(SIGN_IN_REDIRECT_URL, signInRedirectionUrl);
+                window.localStorage.setItem(SIGN_OUT_REDIRECT_URL, signOutRedirectionUrl);
+            }
+
+            function clearUserLocalStorageProperties() {
+                window.localStorage.removeItem(USER_ID);
+                window.localStorage.removeItem(SIGN_OUT_REDIRECT_URL);
+                window.localStorage.removeItem(SIGN_IN_REDIRECT_URL);
+            }
+
+            function getCookieValue(name) {
+                const cookies = document.cookie.split(';');
+                for (const cookie of cookies) {
+                    const [key, value] = cookie.trim().split('=');
+                    if (key === name) {
+                        return decodeURIComponent(value);
+                    }
+                }
+                return undefined;
+            }
+
+            function initTooltip() {
+                $(function () {
+                    $('[data-toggle="tooltip"]').tooltip();
+                })
+            }
+
+
+            function showToast() {
+                $('.toast').toast('show')
+            }
+
+            function updateLinksInIframe(iframeDocument) {
+                const elements = iframeDocument.querySelectorAll('a');
+                elements.forEach(tag => {
+                    let href = tag.getAttribute('href');
+                    const target = tag.getAttribute('target');
+                    // Exclude anchors that have blob URLs (used for file downloads) from being affected by 'show-toolbar=true'
+                    if (href && !href.includes('show-toolbar=true') && !href.startsWith('blob:')) {
+                        if (href.startsWith('#') || href.startsWith('/') || href.includes(window.location.hostname)) {
+                            if (href === '#') {
+                                href = '/';
+                            }
+                            // append the query param if NOT "scroll to section" action.
+                            if (!href.includes('#')) {
+                                const newHref = href + (href.includes('?') ? '&' : '?') + 'show-toolbar=true';
+                                tag.setAttribute('href', newHref);
+                            }
+                        }
+                        // Set target from self to parent if NOT "scroll to section" action
+                        if ((!target || target === '_self') && !href.includes('#')) {
+                            tag.setAttribute('target', '_parent');
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+
+</head>
+
+<body>
+
+<div class="fixed-top preview-header">
+    <div class="position-relative w-100 toolbar">
+        <div class="preview-header__view--selection">
+            <label class="dropdown-label" for="viewSelect">Preview as:</label>
+            <select id="viewSelect"></select>
+            <i class="ph ph-info" data-toggle="tooltip"
+               data-placement="bottom"
+               data-html="true"
+               title="You are previewing the latest version of the app, including unpublished changes.<br><br>
+                  Please note that actions will affect your real data.">
+            </i>
+        </div>
+
+        <div class="preview-header__screens">
+            <a class="icon desktop active">
+                <i class="ph ph-desktop desktop"></i>
+                <i class="ph ph-desktop desktop-active"></i>
+            </a>
+            <a class="icon tablet">
+                <i class="ph ph-device-tablet-speaker tablet"></i>
+                <i class="ph ph-device-tablet-speaker mobile-active"></i>
+            </a>
+            <a class="icon mobile">
+                <i class="ph ph-device-mobile-camera mobile"></i>
+                <i class="ph ph-device-mobile-camera mobile-active"></i>
+            </a>
+        </div>
+
+        <div class="template">
+            <div class="template-app-name">
+                <span>Community Forum - SD template</span>
+            </div>
+            <div class="use-template">
+                <a href="https://studio.softr.io/dashboard?template_id=3e239666-6b5f-4c1c-a193-cbfa055e46cb" target="_blank">
+                    <span>Use template</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--Confirmation modal-->
+<div id="userConfirmationModal" class="modal fade bd-example-modal-lg" tabindex="-1" role="dialog"
+     aria-labelledby="exampleModalCenterTitle"
+     aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="exampleModalCenterTitle">
+                    Preview as a user
+                </h3>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <i class="ph ph-x-circle"></i>
+                </button>
+            </div>
+            <div class="modal-body"></div>
+            <div class="modal-footer">
+                <div class="custom-control custom-checkbox remember-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="customControlInline">
+                    <label class="custom-control-label" for="customControlInline">Donât show this again</label>
+                </div>
+
+                <button type="button" class="btn submit-btn">
+                    Ok, I understand
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--Toaster-->
+<div aria-live="polite" aria-atomic="true">
+    <div id="toast-container" class="toast" data-delay="4000">
+        <div class="toast-body">
+            <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+                <i class="ph ph-x-circle"></i>
+            </button>
+            <div class="message">Something went wrong, please try again.</div>
+        </div>
+    </div>
+</div>
+
+<div class="iframe-container">
+    <div id="urlQRDiv" class="container">
+        <img id="urlQRCodeImage" alt="QR Image" class="urlQRCodeImage">
+        <label style="margin-bottom: 4px;">Scan to try on your device</label>
+        <label id="linkSentID" class="hiddenWithNoAnimation">Link sent!</label>
+    </div>
+    <iframe id="preview-iframe" class="full-screen-preview__iframe" src="https://community-forum-sdb.softr.app/top-posts?t=1761166587382" allowfullscreen></iframe>
+</div>
+
+
+<!-- Scripts -->
+<script src="https://assets.softr-files.com/libs/jquery/3.7.0/jquery.min.js"></script>
+<script src="https://assets.softr-files.com/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+<script src="https://assets.softr-files.com/libs/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
+</body>
+</html>
