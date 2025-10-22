@@ -15,5 +15,5 @@ jobs:
 
     - name: Start services with Docker Compose
       run: |
-        cd db
+        cd src
         docker compose up -d
