@@ -302,7 +302,7 @@ def login() -> str:
 
 @app.route("/sign-in", methods=["POST"])
 def sign_in():
-    resp = make_response("session")
+    resp = make_response(redirect(url_for('Homepage')))
     username = request.form.get("username")
     password = request.form.get("password")
     if username is None or password is None:
