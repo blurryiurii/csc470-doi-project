@@ -2,7 +2,12 @@ node_modules
 package-lock.json
 
 #db 
+<<<<<<< Updated upstream
 db/**
+=======
+db/db-creds.env
+db/*
+>>>>>>> Stashed changes
 
 #venv
 env/

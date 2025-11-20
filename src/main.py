@@ -5,7 +5,27 @@ from flask import Flask, make_response, request
 from sqlalchemy import DateTime, ForeignKey, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
+<<<<<<< Updated upstream:src/main.py
 from conn import database, host, password, port, user
+=======
+from flask import make_response
+from flask import abort, redirect, url_for
+
+import os
+
+
+from sqlalchemy import create_engine
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy import String
+from sqlalchemy import DateTime
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+
+from conn import *
+>>>>>>> Stashed changes:src/proof_of_concept.py
 
 conn_str = {
     "user": user,
@@ -166,6 +186,14 @@ def get_raw_chat(thread_id: int) -> list[Comment]:
         data = session.scalars(stmt)
         data = list(data)
     return data
+def get_raw_thread_list():
+    data=[]
+    with Session(engine) as session:
+        stmt = select(Thread)
+        data = session.scalars(stmt)
+        data=list(data)
+    return data
+
 
 
 """
@@ -217,13 +245,32 @@ app = Flask(__name__)
 
 
 @app.route("/")
+<<<<<<< Updated upstream:src/main.py
 def Homepage() -> str:
     return "<p>Wecome to our app!!</p>"
+=======
+def Homepage():
+    user_id = (request.cookies.get("user_id"))
+    if user_id == None:
+        return redirect(url_for('login'))
+    ret_str = f"<p>Wecome to our app {get_user_by_id(user_id)}!!</p>"
+    ret_str+=f"<p>Available threads: </p><br>"
+    ret_str+=f"<p>Navigate to url/thread/doi (with doi= one of the values below) to access thread: </p><br>"
+    thread_list = get_raw_thread_list()
+    for t in thread_list:
+        url=url_for('thread',doi=t.doi)
+        ret_str+=f'<a href="{url}">{t.doi}</a><br>'
+    return ret_str
+>>>>>>> Stashed changes:src/proof_of_concept.py
 
 
 @app.route("/thread/<path:doi>")
+<<<<<<< Updated upstream:src/main.py
 def thread(doi: str) -> str:
     print("thread")
+=======
+def thread(doi):
+>>>>>>> Stashed changes:src/proof_of_concept.py
     thread_id = check_thread(doi)
     if thread_id is None:
         x = check_doi(doi)
@@ -243,6 +290,7 @@ def thread(doi: str) -> str:
   <label for="message">Enter your text:</label><br>
   <input type="text" id="message" name="userText" required><br><br>
 <input type="hidden" name="thread_id" value="{thread_id}">
+<input type="hidden" name="doi" value="{doi}">
   <input type="submit" value="Submit">
 </form>'''
     ret_str += form
@@ -256,6 +304,7 @@ def send_message() -> str | tuple[str, int]:
         return "Error: Not logged in", 401
     user_id = int(user_id_str)
     message = request.form.get("userText")
+<<<<<<< Updated upstream:src/main.py
     thread_id_str = request.form.get("thread_id")
     if message is None or thread_id_str is None:
         return "Error: Missing message or thread_id", 400
@@ -264,6 +313,11 @@ def send_message() -> str | tuple[str, int]:
     return f"Data received successfully!\n{thread_id}"
 
 
+=======
+    thread_id = request.form.get("thread_id")
+    create_comment(thread_id,user_id,message)
+    return redirect(url_for('thread',doi=request.form.get("doi")))
+>>>>>>> Stashed changes:src/proof_of_concept.py
 @app.route("/login")
 def login() -> str:
     ret_str = ""
