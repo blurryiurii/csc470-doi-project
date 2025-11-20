@@ -1,7 +1,7 @@
 from datetime import datetime
 
 import requests
-from flask import Flask, make_response, request
+from flask import Flask, make_response, request, redirect, url_for
 from sqlalchemy import DateTime, ForeignKey, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
@@ -230,6 +230,7 @@ def Homepage():
     user_id = request.cookies.get("user_id")
     if user_id == None:
         return redirect(url_for("login"))
+    assert user_id !=None
     ret_str = f"<p>Wecome to our app {get_user_by_id(user_id)}!!</p>"
     ret_str += "<p>Available threads: </p><br>"
     ret_str += "<p>Navigate to url/thread/doi (with doi= one of the values below) to access thread: </p><br>"
@@ -281,7 +282,8 @@ def send_message() -> str | tuple[str, int]:
         return "Error: Missing message or thread_id", 400
     thread_id = int(thread_id_str)
     create_comment(thread_id, user_id, message)
-    return f"Data received successfully!\n{thread_id}"
+    doi = request.form.get("doi")
+    return redirect(url_for('thread',doi=doi))
 
 
 @app.route("/login")
@@ -299,7 +301,7 @@ def login() -> str:
 
 
 @app.route("/sign-in", methods=["POST"])
-def log_in():
+def sign_in():
     resp = make_response("session")
     username = request.form.get("username")
     password = request.form.get("password")
