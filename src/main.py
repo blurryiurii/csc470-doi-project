@@ -243,7 +243,10 @@ def Homepage():
 
 @app.route("/thread/<path:doi>")
 def thread(doi: str) -> str:
-    print("thread")
+    user_id = request.cookies.get("user_id")
+    if user_id == None:
+        return redirect(url_for("login"))
+ 
     thread_id = check_thread(doi)
     if thread_id is None:
         x = check_doi(doi)
@@ -309,7 +312,9 @@ def sign_in():
         return "Error: Missing username or password", 400
     user_id = check_user(username)
     if not user_id:
-        user_id = create_user(username, "Who is john galt?", password)
+        create_user(username, "Who is john galt?", password)
+        user_id = check_user(username)
+    assert user_id
     resp.set_cookie("user_id", str(user_id))
 
     return resp
