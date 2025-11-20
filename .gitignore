@@ -2,7 +2,7 @@ node_modules
 package-lock.json
 
 #db 
-db/db-creds.env
+db/**
 
 #venv
 env/
