@@ -312,16 +312,42 @@ def sign_in():
         return "Error: Missing username or password", 400
     user_id = check_user(username)
     if not user_id:
-        create_user(username, "Who is john galt?", password)
-        user_id = check_user(username)
+        return redirect(url_for("sign_up"))
     assert user_id
     resp.set_cookie("user_id", str(user_id))
 
     return resp
 
+@app.route("/sign-up")
+def sign_up():
+    ret_str="<p>Welcome! Plz sign up!</p><br>"
+    form = """<form action="/create-account" method="post">
+  <label for="username">Enter your username:</label><br>
+  <input type="text" id="username" name="username" required><br><br>
+  <label for="password">Enter your password:</label><br>
+  <input type="password" id="password" name="password" required><br><br>
+  <label for="password">Enter your password:</label><br>
+  <input type="password" id="password" name="password_verify" required><br><br>
+  <input type="submit" value="Submit">
+</form>"""
+    ret_str+=form
+    return ret_str
 
+@app.route("/create-account", methods=["POST"]) 
+def create_account():
+    resp = make_response(redirect(url_for('Homepage')))
+    username = request.form.get("username")
+    password = request.form.get("password")
+    password_verify = request.form.get("password_verify")
+    if check_user(username):
+        return "user already exists"
+    if password!=password_verify:
+        return "Passwords do not match"
+    create_user(username, "i am john galt", password)
+    user_id = check_user(username)
+    resp.set_cookie("user_id", str(user_id))
+    return resp
 if __name__ == "__main__":
     print("starting")
     create_author("John Galt", "john.galt@gmail.com")
-    create_user("John Galt", "i am john galt", "Password1!")
     app.run(host="0.0.0.0", debug=True)
