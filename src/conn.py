@@ -1,5 +1,5 @@
 user = 'example'
 password = "passw0rd"
 database = "default_database"
-host = "127.0.0.1"
+host = "database"
 port = 5432

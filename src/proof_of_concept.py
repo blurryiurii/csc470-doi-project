@@ -5,12 +5,7 @@ import asyncpg
 from flask import Flask
 from flask import request
 
-app = Flask(__name__)
-
-@app.route("/")
-def Homepage():
-    return "<p>Wecome to our app!!</p>"
-
+from flask import make_response
 
 import os
 
@@ -34,11 +29,9 @@ conn_str = {
     "host": host,
     "port": port
 }
-engine = create_engine(f"postgresql+psycopg2://{conn_str["user"]}:{conn_str["password"]}@{conn_str["host"]}:{conn_str["port"]}/{conn_str["database"]}")
+engine = create_engine(f'postgresql+psycopg2://{conn_str["user"]}:{conn_str["password"]}@{conn_str["host"]}:{conn_str["port"]}/{conn_str["database"]}')
 from datetime import datetime
 
-if __name__ == '__main__':
-    app.run(host="0.0.0.0",debug=True)
 
 class Base(DeclarativeBase):
     pass
@@ -96,17 +89,6 @@ def create_thread(doi,abstract,title,author_id):
         thread = Thread(doi=doi,created_at=datetime.now(),abstract=abstract,title=title,author_id=author_id)
         session.add_all([thread])
         session.commit()
-def check_thread(doi):
-    data=[]
-    with Session(engine) as session:
-        stmt = select(Thread).where(Thread.doi.in_([doi]))
-        data = session.scalars(stmt)
-        data=list(data)
-    if len(data)==0:
-        return None
-    else:
-        return data[0].id
-
 def create_comment(thread_id,user_id,body):
     with Session(engine) as session:
         comment = Comment(thread_id=thread_id,user_id=user_id,body=body,created_at=datetime.now())
@@ -196,3 +178,89 @@ while True:
     new_message = input(username+" : ")
     create_comment(thread_id,user_id,new_message)
 '''
+def check_thread(doi):
+    data=[]
+    with Session(engine) as session:
+        stmt = select(Thread).where(Thread.doi.in_([doi]))
+        data = session.scalars(stmt)
+        data=list(data)
+    if len(data)==0:
+        return None
+    else:
+        return data[0].id
+
+
+
+
+
+
+
+
+app = Flask(__name__)
+@app.route("/")
+def Homepage():
+    return "<p>Wecome to our app!!</p>"
+
+@app.route("/thread/<path:doi>")
+def thread(doi):
+    print("thread")
+    thread_id = check_thread(doi)
+    if thread_id==None:
+        x=check_doi(doi)
+        if x:
+            create_thread(doi,"who is john galt","Who is John Galt?",1)
+        else:
+            return f"<p>DOI {doi} does not exist</p>"
+    thread_id = check_thread(doi)
+    ret_str = f"<p>thread {doi} {thread_id}</p>\n"
+    raw_chat = get_raw_chat(thread_id)
+    for r in raw_chat:
+        ret_str+="<p>"+str(get_user_by_id(r.user_id))+": "+str(r.body)+"</p>"
+        ret_str+="<br>"
+    form = f'''<form action="/send-it" method="post">
+  <label for="message">Enter your text:</label><br>
+  <input type="text" id="message" name="userText" required><br><br>
+<input type="hidden" name="thread_id" value="{thread_id}">
+  <input type="submit" value="Submit">
+</form>'''
+    ret_str+=form
+    return ret_str
+@app.route('/send-it', methods=['POST'])
+def send_message():
+    user_id = int(request.cookies.get("user_id"))
+    message = request.form.get("userText")
+    thread_id = request.form.get("thread_id")
+    create_comment(thread_id,user_id,message)
+    return f"Data received successfully!\n{thread_id}"
+@app.route("/login")
+def login():
+    ret_str=""
+    form = f'''<form action="/sign-in" method="post">
+  <label for="username">Enter your username:</label><br>
+  <input type="text" id="username" name="username" required><br><br>
+  <label for="password">Enter your password:</label><br>
+  <input type="password" id="password" name="password" required><br><br>
+  <input type="submit" value="Submit">
+</form>'''
+    ret_str+=form
+    return ret_str
+
+@app.route('/sign-in', methods=['POST'])
+def log_in():
+    resp = make_response("session")
+    username = request.form.get("username")
+    password = request.form.get("password")
+    user_id = check_user(username)
+    if not user_id:
+        user_id=create_user(username,"Who is john galt?",password)
+    resp.set_cookie('user_id',str(user_id))
+    
+    return resp
+
+if __name__ == '__main__':
+    print("starting")
+    create_author("John Galt","john.galt@gmail.com")
+    create_user("John Galt","i am john galt","Password1!")
+    app.run(host="0.0.0.0",debug=True)
+
+
