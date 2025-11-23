@@ -1,26 +1,19 @@
-# csc470-doi-project
+# CSC470/570 Project
 
-Project for the CSC470 course. A DOI Lookup &amp; Discussion board for researchers, observers, and 
-the curious alike.
+A discussion board for researchers, observers, and curious minds that focuses on DOI articles.
 
-## Setup Instructions
+Currently hosted on a server accessible on https://470.iurii.io (Is it down? Message owners of this repo!)
 
-1. Go into the source directory
+## About This Project
+Our proposal can be found in `docs/project-proposal-draft.md`
 
-   ```console
-   cd src
-   ```
+This project is hosted on a Google Cloud VM on an almost-free-tier. Our idea is to help researchers collaborate and discuss articles they've found interesting.
 
-2. Start the application using Docker Compose
+## Build Project From Source
+You can host your own instance of the project by following instructions in `docs/setup-instructions.md`
 
-   ```console
-   docker compose up -d
-   ```
-
-   This will:
-   - Start a PostgreSQL database on port 5432
-   - Initialize the database schema automatically
-   - Start the Flask web server on port 6767
-
-3. Access the application by opening your browser and navigate to: `http://localhost:6767`
-
+## Contributors
+- [Iurii Chmykhun](https://github.com/blurryiurii)
+- [John McMahon](https://github.com/John-A-McMahon)
+- [Joshua Ganschow](https://github.com/GanschowJosh)
+- [Nathaniel Ketema](https://github.com/nathanielketema)
