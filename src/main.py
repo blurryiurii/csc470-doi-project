@@ -142,6 +142,17 @@ def get_user_by_id(user_id: int) -> str | None:
     else:
         return data[0].account_name
 
+def get_user_password_by_id(user_id: int) -> str | None:
+    data = []
+    with Session(engine) as session:
+        stmt = select(User).where(User.id.in_([user_id]))
+        data = session.scalars(stmt)
+        data = list(data)
+    if len(data) == 0:
+        return None
+    else:
+        return data[0].password_hash
+
 
 def check_author(name: str) -> int | None:
     data = []
@@ -280,6 +291,9 @@ def sign_in():
     user_id = check_user(username)
     if not user_id:
         return redirect(url_for("sign_up"))
+    #Security 100
+    if password != get_user_password_by_id(user_id):
+        return "<p>Ah ah ah! You didn't say the magic word!</p>", 400
     assert user_id
     resp.set_cookie("user_id", str(user_id))
 
