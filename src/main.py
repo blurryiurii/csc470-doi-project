@@ -177,39 +177,6 @@ def get_raw_thread_list():
     return data
 
 
-"""
-user_id=check_user("John")
-if not user_id:
-    create_user("John","I am a CS student","password")
-    user_id=check_user("John")
-author_id = check_author("Justin Schroeder")
-if not author_id:
-    create_author("Justin Schroeder","...@...")
-    author_id = check_author("Justin Schroeder")
-thread_id=check_thread("10.1002/jgt.21783")
-if not thread_id:
-    create_thread("10.1002/jgt.21783","In ...","Orientable Hamilton Cycle Embeddings of Complete Tripartite Graphs II: Voltage Graph Constructions and Applications",author_id)
-    thread_id=check_thread("10.1002/jgt.21783")
-print(user_id)
-print(thread_id)
-print(author_id)
-
-while True:
-    if os.name == 'nt':  
-        os.system('cls')
-    else:  
-        os.system('clear')
-    thread=get_raw_chat(thread_id)
-    for message in thread:
-        username =get_user_by_id(message.user_id)
-        body = message.body
-        print(username,":",body)
-    username =get_user_by_id(user_id)
-    new_message = input(username+" : ")
-    create_comment(thread_id,user_id,new_message)
-"""
-
-
 def check_thread(doi: str) -> int | None:
     data = []
     with Session(engine) as session:
@@ -351,3 +318,4 @@ if __name__ == "__main__":
     print("starting")
     create_author("John Galt", "john.galt@gmail.com")
     app.run(host="0.0.0.0", debug=True)
+
