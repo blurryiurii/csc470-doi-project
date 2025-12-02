@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 
 import requests
-from flask import Flask, make_response, request, redirect, url_for, render_template
+from flask import Flask, make_response, request, redirect, url_for, render_template, jsonify
 from sqlalchemy import DateTime, ForeignKey, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
@@ -306,6 +306,96 @@ def create_account():
     user_id = check_user(username)
     resp.set_cookie("user_id", str(user_id))
     return resp
+
+# API Endpoints
+@app.route("/api/threads", methods=["GET"])
+def api_get_threads():
+    """Get all threads"""
+    threads = get_raw_thread_list()
+    thread_data = []
+    for thread in threads:
+        thread_data.append({
+            "id": thread.id,
+            "doi": thread.doi,
+            "title": thread.title,
+            "abstract": thread.abstract,
+            "created_at": thread.created_at.isoformat() if thread.created_at else None,
+            "author_id": thread.author_id
+        })
+    return jsonify({"threads": thread_data})
+
+@app.route("/api/threads/<int:thread_id>", methods=["GET"])
+def api_get_thread(thread_id: int):
+    """Get a specific thread with its comments"""
+    with Session(engine) as session:
+        stmt = select(Thread).where(Thread.id == thread_id)
+        thread = session.scalar(stmt)
+
+        if thread is None:
+            return jsonify({"error": "Thread not found"}), 404
+
+        comments = get_raw_chat(thread_id)
+        comment_data = []
+        for comment in comments:
+            comment_data.append({
+                "id": comment.id,
+                "user_id": comment.user_id,
+                "username": get_user_by_id(comment.user_id),
+                "body": comment.body,
+                "created_at": comment.created_at.isoformat() if comment.created_at else None
+            })
+
+        return jsonify({
+            "id": thread.id,
+            "doi": thread.doi,
+            "title": thread.title,
+            "abstract": thread.abstract,
+            "created_at": thread.created_at.isoformat() if thread.created_at else None,
+            "author_id": thread.author_id,
+            "comments": comment_data
+        })
+
+@app.route("/api/users/<int:user_id>", methods=["GET"])
+def api_get_user(user_id: int):
+    """Get user information"""
+    with Session(engine) as session:
+        stmt = select(User).where(User.id == user_id)
+        user = session.scalar(stmt)
+
+        if user is None:
+            return jsonify({"error": "User not found"}), 404
+
+        return jsonify({
+            "id": user.id,
+            "account_name": user.account_name,
+            "bio": user.bio,
+            "role": user.role,
+            "last_online": user.last_online.isoformat() if user.last_online else None
+        })
+
+@app.route("/api/comments", methods=["POST"])
+def api_create_comment():
+    """Create a new comment on a thread"""
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "No JSON data provided"}), 400
+
+    thread_id = data.get("thread_id")
+    user_id = data.get("user_id")
+    body = data.get("body")
+
+    if not all([thread_id, user_id, body]):
+        return jsonify({"error": "Missing required fields: thread_id, user_id, body"}), 400
+
+    create_comment(thread_id, user_id, body)
+
+    return jsonify({
+        "message": "Comment created successfully",
+        "thread_id": thread_id,
+        "user_id": user_id
+    }), 201
+
 if __name__ == "__main__":
     print("starting")
     create_author("John Galt", "john.galt@gmail.com")
