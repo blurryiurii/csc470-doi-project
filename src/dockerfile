@@ -4,6 +4,8 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY main.py .
 COPY conn.py .
+COPY templates/ ./templates/
+COPY static/ ./static/
 expose 6767/tcp
 
 CMD ["python","main.py"] 
