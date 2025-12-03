@@ -1,8 +1,7 @@
-import os
 from datetime import datetime
 
 import requests
-from flask import Flask, make_response, request, redirect, url_for, render_template
+from flask import Flask, make_response, request, redirect, url_for
 from sqlalchemy import DateTime, ForeignKey, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
@@ -201,9 +200,7 @@ def check_thread(doi: str) -> int | None:
         return data[0].id
 
 
-app = Flask(__name__, 
-            template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates'),
-            static_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static'))
+app = Flask(__name__)
 
 
 @app.route("/")
@@ -211,28 +208,47 @@ def Homepage():
     user_id = request.cookies.get("user_id")
     if user_id == None:
         return redirect(url_for("login"))
-    username = get_user_by_id(user_id)
+    assert user_id !=None
+    ret_str = f"<p>Wecome to our app {get_user_by_id(user_id)}!!</p>"
+    ret_str += "<p>Available threads: </p><br>"
+    ret_str += "<p>Navigate to url/thread/doi (with doi= one of the values below) to access thread: </p><br>"
     thread_list = get_raw_thread_list()
-    return render_template("home.html", username=username, threads=thread_list)
+    for t in thread_list:
+        url = url_for("thread", doi=t.doi)
+        ret_str += f'<a href="{url}">{t.doi}</a><br>'
+    return ret_str
 
 
 @app.route("/thread/<path:doi>")
 def thread(doi: str) -> str:
     user_id = request.cookies.get("user_id")
-    if user_id is None:
+    if user_id == None:
         return redirect(url_for("login"))
-    
+ 
     thread_id = check_thread(doi)
     if thread_id is None:
-        if check_doi(doi):
+        x = check_doi(doi)
+        if x:
             create_thread(doi, "who is john galt", "Who is John Galt?", 1)
-            thread_id = check_thread(doi)
         else:
-            return render_template("error.html", message=f"DOI {doi} does not exist")
-    
+            return f"<p>DOI {doi} does not exist</p>"
+    thread_id = check_thread(doi)
+    if thread_id is None:
+        return f"<p>Error: Thread {doi} could not be created</p>"
+    ret_str = f"<p>thread {doi} {thread_id}</p>\n"
     raw_chat = get_raw_chat(thread_id)
-    comments = [(get_user_by_id(r.user_id), r.body) for r in raw_chat]
-    return render_template("thread.html", doi=doi, thread_id=thread_id, comments=comments)
+    for r in raw_chat:
+        ret_str += "<p>" + str(get_user_by_id(r.user_id)) + ": " + str(r.body) + "</p>"
+        ret_str += "<br>"
+    form = f'''<form action="/send-it" method="post">
+  <label for="message">Enter your text:</label><br>
+  <input type="text" id="message" name="userText" required><br><br>
+<input type="hidden" name="thread_id" value="{thread_id}">
+<input type="hidden" name="doi" value="{doi}">
+  <input type="submit" value="Submit">
+</form>'''
+    ret_str += form
+    return ret_str
 
 
 @app.route("/send-it", methods=["POST"])
@@ -253,7 +269,16 @@ def send_message() -> str | tuple[str, int]:
 
 @app.route("/login")
 def login() -> str:
-    return render_template("login.html")
+    ret_str = ""
+    form = """<form action="/sign-in" method="post">
+  <label for="username">Enter your username:</label><br>
+  <input type="text" id="username" name="username" required><br><br>
+  <label for="password">Enter your password:</label><br>
+  <input type="password" id="password" name="password" required><br><br>
+  <input type="submit" value="Submit">
+</form>"""
+    ret_str += form
+    return ret_str
 
 
 @app.route("/sign-in", methods=["POST"])
@@ -274,23 +299,20 @@ def sign_in():
 
     return resp
 
-@app.route("/go-to-thread", methods=["POST"])
-def go_to_thread():
-    user_id = request.cookies.get("user_id")
-    if user_id is None:
-        return redirect(url_for("login"))
-    
-    doi = request.form.get("doi")
-    if doi is None or doi.strip() == "":
-        return redirect(url_for("Homepage"))
-    
-    doi = doi.strip()
-    
-    return redirect(url_for("thread", doi=doi))
-
 @app.route("/sign-up")
 def sign_up():
-    return render_template("signup.html")
+    ret_str="<p>Welcome! Plz sign up!</p><br>"
+    form = """<form action="/create-account" method="post">
+  <label for="username">Enter your username:</label><br>
+  <input type="text" id="username" name="username" required><br><br>
+  <label for="password">Enter your password:</label><br>
+  <input type="password" id="password" name="password" required><br><br>
+  <label for="password">Enter your password:</label><br>
+  <input type="password" id="password" name="password_verify" required><br><br>
+  <input type="submit" value="Submit">
+</form>"""
+    ret_str+=form
+    return ret_str
 
 @app.route("/create-account", methods=["POST"]) 
 def create_account():
@@ -309,5 +331,5 @@ def create_account():
 if __name__ == "__main__":
     print("starting")
     create_author("John Galt", "john.galt@gmail.com")
-    app.run(host="0.0.0.0", port=6767, debug=True)
+    app.run(host="0.0.0.0", debug=True)
 

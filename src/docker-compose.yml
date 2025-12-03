@@ -15,7 +15,7 @@ services:
   web_server:
     build: .
     ports:
-      - 80:5000
+      - 6767:6767
     depends_on:
       - database
     restart: always

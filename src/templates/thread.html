@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thread: {{ doi }} - DOI Discussion Board</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="card card-wide">
+            <div class="nav-bar">
+                <a href="{{ url_for('Homepage') }}">← Back to Threads</a>
+            </div>
+            
+            <h1>Discussion Thread</h1>
+            <span class="doi-badge">DOI: {{ doi }}</span>
+            
+            <div class="comments-section">
+                {% if comments %}
+                    {% for username, body in comments %}
+                    <div class="comment">
+                        <div class="comment-author">{{ username }}</div>
+                        <div class="comment-body">{{ body }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="no-comments">
+                    No comments yet. Start the conversation!
+                </div>
+                {% endif %}
+            </div>
+            
+            <form action="{{ url_for('send_message') }}" method="post" class="message-form">
+                <input type="text" name="userText" placeholder="Type your message..." required>
+                <input type="hidden" name="thread_id" value="{{ thread_id }}">
+                <input type="hidden" name="doi" value="{{ doi }}">
+                <input type="submit" value="Send">
+            </form>
+        </div>
+    </div>
+</body>
+</html>

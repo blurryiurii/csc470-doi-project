@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home - Scholard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="card card-wide">
+            <div class="nav-bar">
+                <div class="user-welcome">
+                    <div class="user-avatar">{{ username[0]|upper if username else '?' }}</div>
+                    <span>Welcome, <strong>{{ username }}</strong>!</span>
+                </div>
+                <a href="{{ url_for('login') }}">Sign Out</a>
+            </div>
+            
+            <h1>Discussion Threads</h1>
+            <p class="subtitle">Browse existing discussions or start a new one</p>
+            
+            <!-- DOI Search/Create Bar -->
+            <div class="doi-search-section">
+                <form action="{{ url_for('go_to_thread') }}" method="post" class="doi-search-form">
+                    <div class="doi-input-wrapper">
+                        <span class="doi-prefix">DOI:</span>
+                        <input type="text" name="doi" placeholder="e.g., 10.1000/xyz123" required>
+                    </div>
+                    <input type="submit" value="Go to Thread">
+                </form>
+                <p class="doi-hint">Enter a DOI to join an existing discussion or start a new one</p>
+            </div>
+            
+            {% if threads %}
+            <h2 class="section-title">Existing Threads</h2>
+            <ul class="thread-list">
+                {% for thread in threads %}
+                <li class="thread-item">
+                    <a href="{{ url_for('thread', doi=thread.doi) }}">
+                        {{ thread.doi }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">📭</div>
+                <p>No threads yet. Be the first to start a discussion!</p>
+                <p style="margin-top: 10px; font-size: 0.9rem;">
+                    Enter a DOI above to create a new thread
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
