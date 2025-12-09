@@ -241,7 +241,7 @@ def thread(doi: str):
         return render_template(
             "thread.html", doi=doi, thread_id=thread_id, comments=comments
         )
-    return render_template("error.html", message=f"Thread creation failed")
+    return render_template("error.html", message="Thread creation failed")
 
 
 @app.route("/send-it", methods=["POST"])
