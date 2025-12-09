@@ -143,6 +143,7 @@ def get_user_by_id(user_id: int) -> str | None:
     else:
         return data[0].account_name
 
+
 def get_user_password_by_id(user_id: int) -> str | None:
     data = []
     with Session(engine) as session:
@@ -201,27 +202,31 @@ def check_thread(doi: str) -> int | None:
         return data[0].id
 
 
-app = Flask(__name__, 
-            template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates'),
-            static_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static'))
+app = Flask(
+    __name__,
+    template_folder=os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "templates"
+    ),
+    static_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), "static"),
+)
 
 
 @app.route("/")
 def Homepage():
     user_id = request.cookies.get("user_id")
-    if user_id == None:
+    if user_id is None:
         return redirect(url_for("login"))
-    username = get_user_by_id(user_id)
+    username = get_user_by_id(int(user_id))
     thread_list = get_raw_thread_list()
     return render_template("home.html", username=username, threads=thread_list)
 
 
 @app.route("/thread/<path:doi>")
-def thread(doi: str) -> str:
+def thread(doi: str):
     user_id = request.cookies.get("user_id")
     if user_id is None:
         return redirect(url_for("login"))
-    
+
     thread_id = check_thread(doi)
     if thread_id is None:
         if check_doi(doi):
@@ -229,14 +234,18 @@ def thread(doi: str) -> str:
             thread_id = check_thread(doi)
         else:
             return render_template("error.html", message=f"DOI {doi} does not exist")
-    
-    raw_chat = get_raw_chat(thread_id)
-    comments = [(get_user_by_id(r.user_id), r.body) for r in raw_chat]
-    return render_template("thread.html", doi=doi, thread_id=thread_id, comments=comments)
+
+    if thread_id is not None:
+        raw_chat = get_raw_chat(thread_id)
+        comments = [(get_user_by_id(r.user_id), r.body) for r in raw_chat]
+        return render_template(
+            "thread.html", doi=doi, thread_id=thread_id, comments=comments
+        )
+    return render_template("error.html", message=f"Thread creation failed")
 
 
 @app.route("/send-it", methods=["POST"])
-def send_message() -> str | tuple[str, int]:
+def send_message():
     user_id_str = request.cookies.get("user_id")
     if user_id_str is None:
         return "Error: Not logged in", 401
@@ -248,7 +257,7 @@ def send_message() -> str | tuple[str, int]:
     thread_id = int(thread_id_str)
     create_comment(thread_id, user_id, message)
     doi = request.form.get("doi")
-    return redirect(url_for('thread',doi=doi))
+    return redirect(url_for("thread", doi=doi))
 
 
 @app.route("/login")
@@ -258,7 +267,7 @@ def login() -> str:
 
 @app.route("/sign-in", methods=["POST"])
 def sign_in():
-    resp = make_response(redirect(url_for('Homepage')))
+    resp = make_response(redirect(url_for("Homepage")))
     username = request.form.get("username")
     password = request.form.get("password")
     if username is None or password is None:
@@ -266,7 +275,7 @@ def sign_in():
     user_id = check_user(username)
     if not user_id:
         return redirect(url_for("sign_up"))
-    #Security 100
+    # Security 100
     if password != get_user_password_by_id(user_id):
         return "<p>Ah ah ah! You didn't say the magic word!</p>", 400
     assert user_id
@@ -274,40 +283,46 @@ def sign_in():
 
     return resp
 
+
 @app.route("/go-to-thread", methods=["POST"])
 def go_to_thread():
     user_id = request.cookies.get("user_id")
     if user_id is None:
         return redirect(url_for("login"))
-    
+
     doi = request.form.get("doi")
     if doi is None or doi.strip() == "":
         return redirect(url_for("Homepage"))
-    
+
     doi = doi.strip()
-    
+
     return redirect(url_for("thread", doi=doi))
+
 
 @app.route("/sign-up")
 def sign_up():
     return render_template("signup.html")
 
-@app.route("/create-account", methods=["POST"]) 
+
+@app.route("/create-account", methods=["POST"])
 def create_account():
-    resp = make_response(redirect(url_for('Homepage')))
+    resp = make_response(redirect(url_for("Homepage")))
     username = request.form.get("username")
     password = request.form.get("password")
     password_verify = request.form.get("password_verify")
+    if username is None or password is None or password_verify is None:
+        return "Missing required fields"
     if check_user(username):
         return "user already exists"
-    if password!=password_verify:
+    if password != password_verify:
         return "Passwords do not match"
     create_user(username, "i am john galt", password)
     user_id = check_user(username)
     resp.set_cookie("user_id", str(user_id))
     return resp
+
+
 if __name__ == "__main__":
     print("starting")
     create_author("John Galt", "john.galt@gmail.com")
     app.run(host="0.0.0.0", port=6767, debug=True)
-
