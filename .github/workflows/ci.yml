@@ -25,6 +25,7 @@ jobs:
         pip install -r requirements.txt
         pip install -r test_requirements.txt
         pip install ruff basedpyright black
+        pip install pytest-cov
 
     - name: Run ruff
       run: |
@@ -41,10 +42,17 @@ jobs:
         cd src
         black --check main.py
 
-    - name: Run tests
+    - name: Run tests with coverage
       run: |
         cd src
-        pytest tests/ -v --tb=short
+        pytest tests/ -v --tb=short --cov=. --cov-report=html
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: coverage-report
+        path: src/htmlcov/
 
     - name: Start services with Docker Compose
       run: |
