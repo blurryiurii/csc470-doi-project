@@ -13,6 +13,39 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.14'
+
+    - name: Install dependencies
+      run: |
+        cd src
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r test_requirements.txt
+        pip install ruff basedpyright black
+
+    - name: Run ruff
+      run: |
+        cd src
+        ruff check main.py
+
+    - name: Run basedpyright
+      run: |
+        cd src
+        basedpyright main.py
+
+    - name: Run black
+      run: |
+        cd src
+        black --check main.py
+
+    - name: Run tests
+      run: |
+        cd src
+        pytest tests/ -v --tb=short
+
     - name: Start services with Docker Compose
       run: |
         cd src
