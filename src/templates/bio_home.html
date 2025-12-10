@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - Scholard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Biography</h1>
+            <p class="subtitle">Scholard: the research discussion community!</p>
+            
+            <form action="{{ url_for('update_bio') }}" method="post">
+                <div class="form-group">
+                  <p>{{ bio }}</p>
+                    <label for="bio">Biography</label>
+                    <input type="text" id="bio" name="bio" placeholder="Tell us about yourself!" required>
+                </div>
+                <input type="submit" value="bio">
+            </form>
+            
+        </div>
+    </div>
+</body>
+</html>
