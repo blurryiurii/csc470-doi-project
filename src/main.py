@@ -109,7 +109,7 @@ def create_comment(thread_id: int, user_id: int, body: str) -> None:
 def change_bio(user_id: int, message: str) -> None:
     with Session(engine) as session:
         user_to_update = session.query(User).filter_by(id=user_id).first()
-        if user_to_update!=None:
+        if user_to_update is not None:
             user_to_update.bio = message
         session.commit()
 
