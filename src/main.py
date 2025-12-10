@@ -248,7 +248,7 @@ def userpage(username:str):
         return "invalid user :("
     #user id matches page
     bio=get_bio_by_id(cur_user)
-    if int(user_id) == int(check_user(username)):
+    if int(user_id) == int(cur_user):
         return render_template("bio_home.html",bio=bio)
     return render_template("bio.html",username=username,bio=bio)
 
