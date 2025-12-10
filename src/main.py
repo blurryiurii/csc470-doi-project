@@ -106,13 +106,14 @@ def create_comment(thread_id: int, user_id: int, body: str) -> None:
         )
         session.add_all([comment])
         session.commit()
+
+
 def change_bio(user_id: int, message: str) -> None:
     with Session(engine) as session:
         user_to_update = session.query(User).filter_by(id=user_id).first()
         if user_to_update is not None:
             user_to_update.bio = message
         session.commit()
-
 
 
 def create_author(name: str, email: str) -> None:
@@ -149,6 +150,8 @@ def get_user_by_id(user_id: int) -> str | None:
         return None
     else:
         return data[0].account_name
+
+
 def get_bio_by_id(user_id: int) -> str | None:
     data = []
     with Session(engine) as session:
@@ -159,7 +162,6 @@ def get_bio_by_id(user_id: int) -> str | None:
         return None
     else:
         return data[0].bio
-
 
 
 def get_user_password_by_id(user_id: int) -> str | None:
@@ -237,21 +239,22 @@ def Homepage():
     username = get_user_by_id(int(user_id))
     thread_list = get_raw_thread_list()
     return render_template("home.html", username=username, threads=thread_list)
+
+
 @app.route("/users/<username>")
-def userpage(username:str):
+def userpage(username: str):
     user_id = request.cookies.get("user_id")
     if user_id is None:
         return redirect(url_for("login"))
-    
+
     cur_user = check_user(username)
     if not cur_user:
         return "invalid user :("
-    #user id matches page
-    bio=get_bio_by_id(cur_user)
+    # user id matches page
+    bio = get_bio_by_id(cur_user)
     if int(user_id) == int(cur_user):
-        return render_template("bio_home.html",bio=bio)
-    return render_template("bio.html",username=username,bio=bio)
-
+        return render_template("bio_home.html", bio=bio)
+    return render_template("bio.html", username=username, bio=bio)
 
 
 @app.route("/thread/<path:doi>")
@@ -292,6 +295,7 @@ def send_message():
     doi = request.form.get("doi")
     return redirect(url_for("thread", doi=doi))
 
+
 @app.route("/update_bio", methods=["POST"])
 def update_bio():
     user_id_str = request.cookies.get("user_id")
@@ -301,11 +305,9 @@ def update_bio():
     message = request.form.get("bio")
     if message is None:
         return "invalid bio", 400
-    change_bio(user_id,message)
-
+    change_bio(user_id, message)
 
     return redirect(url_for("userpage", username=get_user_by_id(user_id)))
-
 
 
 @app.route("/login")
