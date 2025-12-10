@@ -109,7 +109,8 @@ def create_comment(thread_id: int, user_id: int, body: str) -> None:
 def change_bio(user_id: int, message: str) -> None:
     with Session(engine) as session:
         user_to_update = session.query(User).filter_by(id=user_id).first()
-        user_to_update.bio = message
+        if user_to_update!=None:
+            user_to_update.bio = message
         session.commit()
 
 
@@ -237,14 +238,16 @@ def Homepage():
     thread_list = get_raw_thread_list()
     return render_template("home.html", username=username, threads=thread_list)
 @app.route("/users/<username>")
-def userpage(username):
+def userpage(username:str):
     user_id = request.cookies.get("user_id")
     if user_id is None:
         return redirect(url_for("login"))
-    if not check_user(username):
+    
+    cur_user = check_user(username)
+    if not cur_user:
         return "invalid user :("
     #user id matches page
-    bio=get_bio_by_id(check_user(username))
+    bio=get_bio_by_id(cur_user)
     if int(user_id) == int(check_user(username)):
         return render_template("bio_home.html",bio=bio)
     return render_template("bio.html",username=username,bio=bio)
