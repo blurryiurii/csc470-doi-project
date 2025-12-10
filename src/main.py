@@ -301,7 +301,7 @@ def update_bio():
     change_bio(user_id,message)
 
 
-    return redirect(url_for(f"userpage", username=get_user_by_id(user_id)))
+    return redirect(url_for("userpage", username=get_user_by_id(user_id)))
 
 
 
