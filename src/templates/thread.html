@@ -21,7 +21,7 @@
                 {% if comments %}
                     {% for username, body in comments %}
                     <div class="comment">
-                        <a href=" {{ url_for('userpage', username=username) }} "><div class="comment-author">{{ username }}</div>
+                        <a href=" {{ url_for('userpage', username=username) }} "><div class="comment-author">{{ username }}</div></a>
                         <div class="comment-body">{{ body | safe }}</div>
                     </div>
                     {% endfor %}

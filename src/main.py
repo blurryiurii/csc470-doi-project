@@ -5,10 +5,12 @@ import requests
 from flask import Flask, make_response, request, redirect, url_for, render_template
 from sqlalchemy import DateTime, ForeignKey, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
+from markupsafe import Markup
 
 from conn import database, host, password, port, user
 
 import markdown
+import bleach
 
 conn_str = {
     "user": user,
@@ -20,6 +22,17 @@ conn_str = {
 engine = create_engine(
     f"postgresql+psycopg2://{conn_str['user']}:{conn_str['password']}@{conn_str['host']}:{conn_str['port']}/{conn_str['database']}"
 )
+
+ALLOWED_TAGS = list(bleach.sanitizer.ALLOWED_TAGS) + [
+    "h1","h2","h3","h4","h5","h6","table","thead","tbody","tr","td","th",
+    "span","div","img","pre","code","blockquote","p","br","hr"
+]
+
+ALLOWED_ATTRS = {
+    "*": ["class", "id", "style"],
+    "a": ["href", "title", "rel"],
+    "img": ["src", "alt"]
+}
 
 
 class Base(DeclarativeBase):
@@ -144,7 +157,11 @@ def get_article_title(doi:str) -> list[str]:
         return "No title available"
 
 def convert_markdown(raw: str) -> str:
-    return markdown.markdown(raw, extensions=["fenced_code", "codehilite"])
+    md = markdown.markdown(raw, extensions=["fenced_code", "codehilite"])
+
+    md_clean = bleach.clean(md, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRS)
+    linked = bleach.linkify(md_clean)
+    return Markup(linked)
 
 
 def get_article_abstract(doi:str) -> list[str]:
