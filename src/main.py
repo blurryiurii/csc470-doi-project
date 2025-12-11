@@ -153,7 +153,7 @@ def get_article_title(doi: str) -> str:
         return "No title available"
     
     try:
-        res = r.json()["message"]["title"][0]
+        res: str = r.json()["message"]["title"][0]
         return res
     except KeyError:
         return "No title available"
@@ -175,13 +175,7 @@ def get_article_abstract(doi: str) -> str:
         return "No abstract available"
     
     try:
-        abstract = r.json()["message"]["abstract"]
-        # abstract = re.sub(r'<jats:p>', '', abstract)
-        # abstract = re.sub(r'</jats:p>', '', abstract)
-        # abstract = re.sub(r'<jats:bold>', '<strong>', abstract)
-        # abstract = re.sub(r'</jats:bold>', '</strong>', abstract)
-        # abstract = re.sub(r'<jats:italic>', '<em>', abstract)
-        # abstract = re.sub(r'</jats:italic>', '</em>', abstract)
+        abstract: str = r.json()["message"]["abstract"]
         abstract = re.sub(r'</?jats:[^>]+>', '', abstract)
         return abstract
     except KeyError:
@@ -284,8 +278,8 @@ def check_thread(doi: str) -> int | None:
 def delete_thread(thread_id: int) -> bool:
     try:
         with Session(engine) as session:
-            session.query(Comment).filter(Comment.thread_id == thread_id).delete()
-            session.query(Thread).filter(Thread.id == thread_id).delete()
+            _ = session.query(Comment).filter(Comment.thread_id == thread_id).delete()
+            _ = session.query(Thread).filter(Thread.id == thread_id).delete()
             session.commit()
             return True
     except Exception as e:
@@ -296,7 +290,7 @@ def delete_thread(thread_id: int) -> bool:
 def delete_comment(comment_id: int) -> bool:
     try:
         with Session(engine) as session:
-            session.query(Comment).filter(Comment.id == comment_id).delete()
+            _ = session.query(Comment).filter(Comment.id == comment_id).delete()
             session.commit()
             return True
     except Exception as e:

@@ -1,4 +1,3 @@
-import pytest
 import responses
 import requests
 
@@ -7,7 +6,7 @@ class TestCrossrefAPI:
     @responses.activate
     def test_check_doi_valid(self):
         doi_valid = "10.1000/valid_doi"
-        responses.add(
+        _ = responses.add(
             responses.GET,
             f"https://api.crossref.org/works/{doi_valid}",
             status=200,
@@ -19,7 +18,7 @@ class TestCrossrefAPI:
     @responses.activate
     def test_check_doi_invalid(self):
         doi_invalid = "10.1000/invalid_doi"
-        responses.add(
+        _ = responses.add(
             responses.GET,
             f"https://api.crossref.org/works/{doi_invalid}",
             status=404,
@@ -31,7 +30,7 @@ class TestCrossrefAPI:
     @responses.activate
     def test_check_doi_server_error(self):
         doi_error = "10.1000/server_error"
-        responses.add(
+        _ = responses.add(
             responses.GET,
             f"https://api.crossref.org/works/{doi_error}",
             status=500,
@@ -43,7 +42,7 @@ class TestCrossrefAPI:
     @responses.activate
     def test_check_doi_special_characters(self):
         doi_special = "10.1234/abc-def_ghi.jkl"
-        responses.add(
+        _ = responses.add(
             responses.GET,
             f"https://api.crossref.org/works/{doi_special}",
             status=200,
