@@ -7,8 +7,6 @@
     ".venv",
     "tests"
   ],
-  "venvPath": ".",
-  "venv": ".venv",
   "reportMissingImports": true,
   "reportMissingTypeStubs": false,
   "reportAny": false,
