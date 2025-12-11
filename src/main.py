@@ -26,14 +26,33 @@ engine = create_engine(
 )
 
 ALLOWED_TAGS = list(bleach.sanitizer.ALLOWED_TAGS) + [
-    "h1","h2","h3","h4","h5","h6","table","thead","tbody","tr","td","th",
-    "span","div","img","pre","code","blockquote","p","br","hr"
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "td",
+    "th",
+    "span",
+    "div",
+    "img",
+    "pre",
+    "code",
+    "blockquote",
+    "p",
+    "br",
+    "hr",
 ]
 
 ALLOWED_ATTRS = {
     "*": ["class", "id", "style"],
     "a": ["href", "title", "rel"],
-    "img": ["src", "alt"]
+    "img": ["src", "alt"],
 }
 
 
@@ -144,6 +163,7 @@ def check_doi(doi: str) -> bool:
     r = requests.get(f"https://api.crossref.org/works/{doi}")
     return r.status_code == 200
 
+
 def get_article_title(doi: str) -> str:
     """
     return the title
@@ -151,12 +171,13 @@ def get_article_title(doi: str) -> str:
     r = requests.get(f"https://api.crossref.org/works/{doi}")
     if r.status_code != 200:
         return "No title available"
-    
+
     try:
         res: str = r.json()["message"]["title"][0]
         return res
     except KeyError:
         return "No title available"
+
 
 def convert_markdown(raw: str) -> Markup:
     md = markdown.markdown(raw, extensions=["fenced_code", "codehilite"])
@@ -173,14 +194,14 @@ def get_article_abstract(doi: str) -> str:
     r = requests.get(f"https://api.crossref.org/works/{doi}")
     if r.status_code != 200:
         return "No abstract available"
-    
+
     try:
         abstract: str = r.json()["message"]["abstract"]
-        abstract = re.sub(r'</?jats:[^>]+>', '', abstract)
+        abstract = re.sub(r"</?jats:[^>]+>", "", abstract)
         return abstract
     except KeyError:
         return "No abstract available"
-    
+
 
 def check_user(username: str) -> int | None:
     data = []
@@ -274,7 +295,8 @@ def check_thread(doi: str) -> int | None:
         return None
     else:
         return data[0].id
-    
+
+
 def delete_thread(thread_id: int) -> bool:
     try:
         with Session(engine) as session:
@@ -328,9 +350,9 @@ def Homepage():
         return redirect(url_for("login"))
     username = get_user_by_id(int(user_id))
     if username is None:
-        #user ID in cookie doesn't exist in database
+        # user ID in cookie doesn't exist in database
         resp = make_response(redirect(url_for("login")))
-        resp.set_cookie("user_id", "", expires=0) #get rid of it
+        resp.set_cookie("user_id", "", expires=0)  # get rid of it
         return resp
     thread_list = get_raw_thread_list()
     return render_template("home.html", username=username, threads=thread_list)
@@ -379,16 +401,24 @@ def thread(doi: str):
             if thread_obj:
                 title = thread_obj.title
                 abstract = thread_obj.abstract
-        
+
         raw_chat = get_raw_chat(thread_id)
-        comments = [(r.id, get_user_by_id(r.user_id), convert_markdown(r.body)) for r in raw_chat]
-        
+        comments = [
+            (r.id, get_user_by_id(r.user_id), convert_markdown(r.body))
+            for r in raw_chat
+        ]
+
         # Check if current user is admin
         user_is_admin = is_admin(int(user_id))
 
         return render_template(
-            "thread.html", doi=doi, thread_id=thread_id, comments=comments,
-            title=title, abstract=abstract, is_admin=user_is_admin
+            "thread.html",
+            doi=doi,
+            thread_id=thread_id,
+            comments=comments,
+            title=title,
+            abstract=abstract,
+            is_admin=user_is_admin,
         )
     return render_template("error.html", message="Thread creation failed")
 
@@ -398,11 +428,11 @@ def delete_thread_route(thread_id: int):
     user_id = request.cookies.get("user_id")
     if user_id is None:
         return "Error: Not logged in", 401
-    
+
     # Check if user is admin
     if not is_admin(int(user_id)):
         return "Error: Unauthorized. Admin access required.", 403
-    
+
     if delete_thread(thread_id):
         return redirect(url_for("Homepage"))
     else:
@@ -414,23 +444,23 @@ def delete_comment_route(comment_id: int):
     user_id = request.cookies.get("user_id")
     if user_id is None:
         return "Error: Not logged in", 401
-    
+
     # Check if user is admin
     if not is_admin(int(user_id)):
         return "Error: Unauthorized. Admin access required.", 403
-    
+
     # Get the DOI to redirect back to the thread
     with Session(engine) as session:
         comment_obj = session.get(Comment, comment_id)
         if comment_obj:
             thread_obj = session.get(Thread, comment_obj.thread_id)
             doi = thread_obj.doi if thread_obj else None
-            
+
             if delete_comment(comment_id):
                 if doi:
                     return redirect(url_for("thread", doi=doi))
                 return redirect(url_for("Homepage"))
-    
+
     return render_template("error.html", message="Failed to delete comment")
 
 
@@ -528,8 +558,6 @@ def create_account():
         return "Error: Failed to create user", 500
     resp.set_cookie("user_id", str(user_id))
     return resp
-
-
 
 
 if __name__ == "__main__":

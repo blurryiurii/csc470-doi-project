@@ -1,4 +1,4 @@
-user = 'example'
+user = "example"
 password = "passw0rd"
 database = "default_database"
 host = "database"
