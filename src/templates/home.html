@@ -38,7 +38,7 @@
                 {% for thread in threads %}
                 <li class="thread-item">
                     <a href="{{ url_for('thread', doi=thread.doi) }}">
-                        {{ thread.doi }}
+                        {{ thread.title }} ({{ thread.doi }})
                     </a>
                 </li>
                 {% endfor %}
