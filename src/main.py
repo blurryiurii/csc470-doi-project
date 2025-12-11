@@ -12,6 +12,8 @@ from conn import database, host, password, port, user
 import markdown
 import bleach
 
+import re
+
 conn_str = {
     "user": user,
     "password": password,
@@ -170,11 +172,18 @@ def get_article_abstract(doi:str) -> list[str]:
     """
     r = requests.get(f"https://api.crossref.org/works/{doi}")
     if r.status_code != 200:
-        return
+        return "No abstract available"
     
     try:
-        res = r.json()["message"]["abstract"]
-        return res
+        abstract = r.json()["message"]["abstract"]
+        # abstract = re.sub(r'<jats:p>', '', abstract)
+        # abstract = re.sub(r'</jats:p>', '', abstract)
+        # abstract = re.sub(r'<jats:bold>', '<strong>', abstract)
+        # abstract = re.sub(r'</jats:bold>', '</strong>', abstract)
+        # abstract = re.sub(r'<jats:italic>', '<em>', abstract)
+        # abstract = re.sub(r'</jats:italic>', '</em>', abstract)
+        abstract = re.sub(r'</?jats:[^>]+>', '', abstract)
+        return abstract
     except KeyError:
         return "No abstract available"
     
@@ -288,6 +297,11 @@ def Homepage():
     if user_id is None:
         return redirect(url_for("login"))
     username = get_user_by_id(int(user_id))
+    if username is None:
+        #user ID in cookie doesn't exist in database
+        resp = make_response(redirect(url_for("login")))
+        resp.set_cookie("user_id", "", expires=0) #get rid of it
+        return resp
     thread_list = get_raw_thread_list()
     return render_template("home.html", username=username, threads=thread_list)
 
