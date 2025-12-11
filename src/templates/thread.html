@@ -22,7 +22,7 @@
                     {% for username, body in comments %}
                     <div class="comment">
                         <div class="comment-author">{{ username }}</div>
-                        <div class="comment-body">{{ body }}</div>
+                        <div class="comment-body">{{ body | safe }}</div>
                     </div>
                     {% endfor %}
                 {% else %}

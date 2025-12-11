@@ -8,6 +8,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from conn import database, host, password, port, user
 
+import markdown
+
 conn_str = {
     "user": user,
     "password": password,
@@ -140,6 +142,9 @@ def get_article_title(doi:str) -> list[str]:
         return res
     except KeyError:
         return "No title available"
+
+def convert_markdown(raw: str) -> str:
+    return markdown.markdown(raw, extensions=["fenced_code", "codehilite"])
 
 
 def get_article_abstract(doi:str) -> list[str]:
@@ -306,7 +311,10 @@ def thread(doi: str):
 
     if thread_id is not None:
         raw_chat = get_raw_chat(thread_id)
-        comments = [(get_user_by_id(r.user_id), r.body) for r in raw_chat]
+
+        comments = [(get_user_by_id(r.user_id), convert_markdown(r.body)) for r in raw_chat]
+
+
         return render_template(
             "thread.html", doi=doi, thread_id=thread_id, comments=comments,
             title=title, abstract=abstract
