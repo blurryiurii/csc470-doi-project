@@ -11,7 +11,7 @@
         <div class="card card-wide">
             <div class="nav-bar">
                 <div class="user-welcome">
-                    <div class="user-avatar">{{ username[0]|upper if username else '?' }}</div>
+                    <a href="{{url_for('userpage', username=username)}}"><div class="user-avatar">{{ username[0]|upper if username else '?' }}</div></a>
                     <span>Welcome, <strong>{{ username }}</strong>!</span>
                 </div>
                 <a href="{{ url_for('login') }}">Sign Out</a>

@@ -127,6 +127,35 @@ def check_doi(doi: str) -> bool:
     r = requests.get(f"https://api.crossref.org/works/{doi}")
     return r.status_code == 200
 
+def get_article_title(doi:str) -> list[str]:
+    """
+    return the title
+    """
+    r = requests.get(f"https://api.crossref.org/works/{doi}")
+    if r.status_code != 200:
+        return
+    
+    try:
+        res = r.json()["message"]["title"][0]
+        return res
+    except KeyError:
+        return "No title available"
+
+
+def get_article_abstract(doi:str) -> list[str]:
+    """
+    return the title
+    """
+    r = requests.get(f"https://api.crossref.org/works/{doi}")
+    if r.status_code != 200:
+        return
+    
+    try:
+        res = r.json()["message"]["abstract"]
+        return res
+    except KeyError:
+        return "No abstract available"
+    
 
 def check_user(username: str) -> int | None:
     data = []
@@ -263,10 +292,14 @@ def thread(doi: str):
     if user_id is None:
         return redirect(url_for("login"))
 
+    title = ""
+    abstract = ""
     thread_id = check_thread(doi)
     if thread_id is None:
         if check_doi(doi):
-            create_thread(doi, "who is john galt", "Who is John Galt?", 1)
+            title = get_article_title(doi)
+            abstract = get_article_abstract(doi)
+            create_thread(doi, abstract, title, 1)
             thread_id = check_thread(doi)
         else:
             return render_template("error.html", message=f"DOI {doi} does not exist")
@@ -275,7 +308,8 @@ def thread(doi: str):
         raw_chat = get_raw_chat(thread_id)
         comments = [(get_user_by_id(r.user_id), r.body) for r in raw_chat]
         return render_template(
-            "thread.html", doi=doi, thread_id=thread_id, comments=comments
+            "thread.html", doi=doi, thread_id=thread_id, comments=comments,
+            title=title, abstract=abstract
         )
     return render_template("error.html", message="Thread creation failed")
 
