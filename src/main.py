@@ -328,10 +328,14 @@ def thread(doi: str):
             return render_template("error.html", message=f"DOI {doi} does not exist")
 
     if thread_id is not None:
+        with Session(engine) as session:
+            thread_obj = session.get(Thread, thread_id)
+            if thread_obj:
+                title = thread_obj.title
+                abstract = thread_obj.abstract
+        
         raw_chat = get_raw_chat(thread_id)
-
         comments = [(get_user_by_id(r.user_id), convert_markdown(r.body)) for r in raw_chat]
-
 
         return render_template(
             "thread.html", doi=doi, thread_id=thread_id, comments=comments,
