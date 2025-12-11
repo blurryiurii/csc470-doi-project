@@ -280,6 +280,42 @@ def check_thread(doi: str) -> int | None:
         return None
     else:
         return data[0].id
+    
+def delete_thread(thread_id: int) -> bool:
+    try:
+        with Session(engine) as session:
+            session.query(Comment).filter(Comment.thread_id == thread_id).delete()
+            session.query(Thread).filter(Thread.id == thread_id).delete()
+            session.commit()
+            return True
+    except Exception as e:
+        print(f"Error deleting thread: {e}")
+        return False
+
+
+def delete_comment(comment_id: int) -> bool:
+    try:
+        with Session(engine) as session:
+            session.query(Comment).filter(Comment.id == comment_id).delete()
+            session.commit()
+            return True
+    except Exception as e:
+        print(f"Error deleting comment: {e}")
+        return False
+
+
+def get_user_role(user_id: int) -> int | None:
+    with Session(engine) as session:
+        stmt = select(User).where(User.id == user_id)
+        data = list(session.scalars(stmt))
+        if len(data) == 0:
+            return None
+        return data[0].role
+
+
+def is_admin(user_id: int) -> bool:
+    role = get_user_role(user_id)
+    return role == 2
 
 
 app = Flask(
@@ -351,13 +387,57 @@ def thread(doi: str):
                 abstract = thread_obj.abstract
         
         raw_chat = get_raw_chat(thread_id)
-        comments = [(get_user_by_id(r.user_id), convert_markdown(r.body)) for r in raw_chat]
+        comments = [(r.id, get_user_by_id(r.user_id), convert_markdown(r.body)) for r in raw_chat]
+        
+        # Check if current user is admin
+        user_is_admin = is_admin(int(user_id))
 
         return render_template(
             "thread.html", doi=doi, thread_id=thread_id, comments=comments,
-            title=title, abstract=abstract
+            title=title, abstract=abstract, is_admin=user_is_admin
         )
     return render_template("error.html", message="Thread creation failed")
+
+
+@app.route("/delete-thread/<int:thread_id>", methods=["POST"])
+def delete_thread_route(thread_id: int):
+    user_id = request.cookies.get("user_id")
+    if user_id is None:
+        return "Error: Not logged in", 401
+    
+    # Check if user is admin
+    if not is_admin(int(user_id)):
+        return "Error: Unauthorized. Admin access required.", 403
+    
+    if delete_thread(thread_id):
+        return redirect(url_for("Homepage"))
+    else:
+        return render_template("error.html", message="Failed to delete thread")
+
+
+@app.route("/delete-comment/<int:comment_id>", methods=["POST"])
+def delete_comment_route(comment_id: int):
+    user_id = request.cookies.get("user_id")
+    if user_id is None:
+        return "Error: Not logged in", 401
+    
+    # Check if user is admin
+    if not is_admin(int(user_id)):
+        return "Error: Unauthorized. Admin access required.", 403
+    
+    # Get the DOI to redirect back to the thread
+    with Session(engine) as session:
+        comment_obj = session.get(Comment, comment_id)
+        if comment_obj:
+            thread_obj = session.get(Thread, comment_obj.thread_id)
+            doi = thread_obj.doi if thread_obj else None
+            
+            if delete_comment(comment_id):
+                if doi:
+                    return redirect(url_for("thread", doi=doi))
+                return redirect(url_for("Homepage"))
+    
+    return render_template("error.html", message="Failed to delete comment")
 
 
 @app.route("/send-it", methods=["POST"])
@@ -454,6 +534,8 @@ def create_account():
         return "Error: Failed to create user", 500
     resp.set_cookie("user_id", str(user_id))
     return resp
+
+
 
 
 if __name__ == "__main__":
