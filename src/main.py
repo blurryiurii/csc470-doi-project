@@ -3,7 +3,7 @@ from datetime import datetime
 
 import requests
 from flask import Flask, make_response, request, redirect, url_for, render_template
-from sqlalchemy import DateTime, ForeignKey, String, create_engine, select
+from sqlalchemy import DateTime, ForeignKey, String, create_engine, select, Integer
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from markupsafe import Markup
 
@@ -11,6 +11,8 @@ from conn import database, host, password, port, user
 
 import markdown
 import bleach
+
+import re
 
 conn_str = {
     "user": user,
@@ -54,9 +56,9 @@ class User(Base):
     account_name: Mapped[str] = mapped_column(String(50))
     bio: Mapped[str] = mapped_column(String(250))
     password_hash: Mapped[str] = mapped_column(String(250))
-    role: Mapped[int] = mapped_column(String(250))
-    last_online: Mapped[DateTime] = mapped_column(DateTime)
-    last_post_time: Mapped[DateTime] = mapped_column(DateTime)
+    role: Mapped[int] = mapped_column(Integer)
+    last_online: Mapped[datetime] = mapped_column(DateTime)
+    last_post_time: Mapped[datetime] = mapped_column(DateTime)
 
 
 class Thread(Base):
@@ -64,7 +66,7 @@ class Thread(Base):
     __table_args__: dict[str, str] = {"schema": "dbo"}
     id: Mapped[int] = mapped_column(primary_key=True)
     doi: Mapped[str] = mapped_column(String(50))
-    created_at: Mapped[DateTime] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
     abstract: Mapped[str] = mapped_column(String(5000))
     title: Mapped[str] = mapped_column(String(50))
     author_id: Mapped[int] = mapped_column(ForeignKey("dbo.author.id"))
@@ -78,7 +80,7 @@ class Comment(Base):
     thread_id: Mapped[int] = mapped_column(ForeignKey("dbo.thread.id"))
     user_id: Mapped[int] = mapped_column(ForeignKey("dbo.user.id"))
     body: Mapped[str] = mapped_column(String(5000))
-    created_at: Mapped[DateTime] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
 
 
 def create_user(username: str, bio: str, password: str) -> None:
@@ -142,13 +144,13 @@ def check_doi(doi: str) -> bool:
     r = requests.get(f"https://api.crossref.org/works/{doi}")
     return r.status_code == 200
 
-def get_article_title(doi:str) -> list[str]:
+def get_article_title(doi: str) -> str:
     """
     return the title
     """
     r = requests.get(f"https://api.crossref.org/works/{doi}")
     if r.status_code != 200:
-        return
+        return "No title available"
     
     try:
         res = r.json()["message"]["title"][0]
@@ -156,7 +158,7 @@ def get_article_title(doi:str) -> list[str]:
     except KeyError:
         return "No title available"
 
-def convert_markdown(raw: str) -> str:
+def convert_markdown(raw: str) -> Markup:
     md = markdown.markdown(raw, extensions=["fenced_code", "codehilite"])
 
     md_clean = bleach.clean(md, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRS)
@@ -164,17 +166,24 @@ def convert_markdown(raw: str) -> str:
     return Markup(linked)
 
 
-def get_article_abstract(doi:str) -> list[str]:
+def get_article_abstract(doi: str) -> str:
     """
-    return the title
+    return the abstract
     """
     r = requests.get(f"https://api.crossref.org/works/{doi}")
     if r.status_code != 200:
-        return
+        return "No abstract available"
     
     try:
-        res = r.json()["message"]["abstract"]
-        return res
+        abstract = r.json()["message"]["abstract"]
+        # abstract = re.sub(r'<jats:p>', '', abstract)
+        # abstract = re.sub(r'</jats:p>', '', abstract)
+        # abstract = re.sub(r'<jats:bold>', '<strong>', abstract)
+        # abstract = re.sub(r'</jats:bold>', '</strong>', abstract)
+        # abstract = re.sub(r'<jats:italic>', '<em>', abstract)
+        # abstract = re.sub(r'</jats:italic>', '</em>', abstract)
+        abstract = re.sub(r'</?jats:[^>]+>', '', abstract)
+        return abstract
     except KeyError:
         return "No abstract available"
     
@@ -252,7 +261,7 @@ def get_raw_chat(thread_id: int) -> list[Comment]:
     return data
 
 
-def get_raw_thread_list():
+def get_raw_thread_list() -> list[Thread]:
     data = []
     with Session(engine) as session:
         stmt = select(Thread)
@@ -288,6 +297,11 @@ def Homepage():
     if user_id is None:
         return redirect(url_for("login"))
     username = get_user_by_id(int(user_id))
+    if username is None:
+        #user ID in cookie doesn't exist in database
+        resp = make_response(redirect(url_for("login")))
+        resp.set_cookie("user_id", "", expires=0) #get rid of it
+        return resp
     thread_list = get_raw_thread_list()
     return render_template("home.html", username=username, threads=thread_list)
 
@@ -303,10 +317,12 @@ def userpage(username: str):
         return "invalid user :("
     # user id matches page
     bio = get_bio_by_id(cur_user)
-    bio = convert_markdown(bio)
+    if bio is None:
+        bio = ""
+    bio_html = convert_markdown(bio)
     if int(user_id) == int(cur_user):
-        return render_template("bio_home.html", bio=bio)
-    return render_template("bio.html", username=username, bio=bio)
+        return render_template("bio_home.html", bio=bio_html)
+    return render_template("bio.html", username=username, bio=bio_html)
 
 
 @app.route("/thread/<path:doi>")
@@ -328,10 +344,14 @@ def thread(doi: str):
             return render_template("error.html", message=f"DOI {doi} does not exist")
 
     if thread_id is not None:
+        with Session(engine) as session:
+            thread_obj = session.get(Thread, thread_id)
+            if thread_obj:
+                title = thread_obj.title
+                abstract = thread_obj.abstract
+        
         raw_chat = get_raw_chat(thread_id)
-
         comments = [(get_user_by_id(r.user_id), convert_markdown(r.body)) for r in raw_chat]
-
 
         return render_template(
             "thread.html", doi=doi, thread_id=thread_id, comments=comments,
@@ -367,7 +387,10 @@ def update_bio():
         return "invalid bio", 400
     change_bio(user_id, message)
 
-    return redirect(url_for("userpage", username=get_user_by_id(user_id)))
+    username = get_user_by_id(user_id)
+    if username is None:
+        return "Error: User not found", 404
+    return redirect(url_for("userpage", username=username))
 
 
 @app.route("/login")
@@ -388,7 +411,6 @@ def sign_in():
     # Security 100
     if password != get_user_password_by_id(user_id):
         return "<p>Ah ah ah! You didn't say the magic word!</p>", 400
-    assert user_id
     resp.set_cookie("user_id", str(user_id))
 
     return resp
@@ -428,6 +450,8 @@ def create_account():
         return "Passwords do not match"
     create_user(username, "i am john galt", password)
     user_id = check_user(username)
+    if user_id is None:
+        return "Error: Failed to create user", 500
     resp.set_cookie("user_id", str(user_id))
     return resp
 
