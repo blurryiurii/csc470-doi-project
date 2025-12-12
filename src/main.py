@@ -310,7 +310,7 @@ def get_trending() -> list[int]:
         for comment in chats:
             if comment.created_at > threshold:
                 histo[thread_id] += 1
-    top = sorted(histo.keys(), key=lambda x: histo[x])
+    top = sorted(histo.keys(), key=lambda x: histo[x],reverse=True)
     return top
 
 
