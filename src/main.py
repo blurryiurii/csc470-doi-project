@@ -393,7 +393,7 @@ def trending():
     trending_ids = get_trending()
     for thread_id in trending_ids:
         thread_title = get_thread_by_id(thread_id)
-        if thread_title == None:
+        if thread_title is None:
             continue
         ret += thread_title
         ret += "<br>"
