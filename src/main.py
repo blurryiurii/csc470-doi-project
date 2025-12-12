@@ -299,8 +299,8 @@ def get_raw_thread_list() -> list[Thread]:
     return data
 
 
-def get_trending():
-    histo = defaultdict(int)
+def get_trending() -> list[int]:
+    histo: defaultdict[int, int] = defaultdict(int)
     threads = get_raw_thread_list()
     now_utc = datetime.now()
     threshold = now_utc - timedelta(hours=24)
@@ -393,6 +393,8 @@ def trending():
     trending_ids = get_trending()
     for thread_id in trending_ids:
         thread_title = get_thread_by_id(thread_id)
+        if thread_title == None:
+            continue
         ret += thread_title
         ret += "<br>"
     return ret
