@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import requests
 from flask import Flask, make_response, request, redirect, url_for, render_template
@@ -14,6 +14,7 @@ import bleach
 
 import re
 
+from collections import defaultdict
 
 conn_str = {
     "user": user,
@@ -228,6 +229,18 @@ def get_user_by_id(user_id: int) -> str | None:
         return data[0].account_name
 
 
+def get_thread_by_id(thread_id: int) -> str | None:
+    data = []
+    with Session(engine) as session:
+        stmt = select(Thread).where(Thread.id.in_([thread_id]))
+        data = session.scalars(stmt)
+        data = list(data)
+    if len(data) == 0:
+        return None
+    else:
+        return data[0].title
+
+
 def get_bio_by_id(user_id: int) -> str | None:
     data = []
     with Session(engine) as session:
@@ -284,6 +297,21 @@ def get_raw_thread_list() -> list[Thread]:
         data = session.scalars(stmt)
         data = list(data)
     return data
+
+
+def get_trending():
+    histo = defaultdict(int)
+    threads = get_raw_thread_list()
+    now_utc = datetime.now()
+    threshold = now_utc - timedelta(hours=24)
+    for thread in threads:
+        thread_id = thread.id
+        chats = get_raw_chat(thread_id)
+        for comment in chats:
+            if comment.created_at > threshold:
+                histo[thread_id] += 1
+    top = sorted(histo.keys(), key=lambda x: histo[x])
+    return top
 
 
 def check_thread(doi: str) -> int | None:
@@ -357,6 +385,17 @@ def Homepage():
         return resp
     thread_list = get_raw_thread_list()
     return render_template("home.html", username=username, threads=thread_list)
+
+
+@app.route("/trending")
+def trending():
+    ret = "<h1>trending!</h1>"
+    trending_ids = get_trending()
+    for thread_id in trending_ids:
+        thread_title = get_thread_by_id(thread_id)
+        ret += thread_title
+        ret += "<br>"
+    return ret
 
 
 @app.route("/users/<username>")
