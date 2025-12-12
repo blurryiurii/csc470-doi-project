@@ -18,10 +18,10 @@
                 {% endif %}
             </div>
             
-            <h1>{{title}}</h1>
+            <h1>{{title | safe }}</h1>
             <h2>Abstract:</h2>
             <div class="abstract-container">
-                <p class="abstract-text">{{abstract}}</p>
+                <p class="abstract-text">{{abstract | safe}}</p>
             </div>
             <span class="doi-badge">DOI: {{ doi }}</span>
             
