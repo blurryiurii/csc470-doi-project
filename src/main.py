@@ -15,7 +15,6 @@ import bleach
 import re
 
 
-
 conn_str = {
     "user": user,
     "password": password,
